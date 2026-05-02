@@ -32,13 +32,34 @@ const CATEGORY_LINKS = [
   { label: "Womenswear", category: "women's clothing", href: "/shop/products?cat=women%27s%20clothing" },
   { label: "Jewelery", category: "jewelery", href: "/shop/products?cat=jewelery" },
   { label: "Grocery", category: "grocery", href: "/shop/products?cat=grocery", image: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=80" },
-  { label: "Premium Dry Fruits", category: "grocery", href: "/shop/products?cat=grocery", image: "https://images.unsplash.com/photo-1599599810769-bcde5a160d32?auto=format&fit=crop&w=900&q=80" },
+  { label: "Premium Dry Fruits", category: "premium dry fruits", href: "/shop/products?cat=premium%20dry%20fruits", image: "https://images.unsplash.com/photo-1599599810769-bcde5a160d32?auto=format&fit=crop&w=900&q=80" },
   { label: "Home", category: "home", href: "/shop/products?cat=home", image: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=80" },
   { label: "Kitchen", category: "kitchen", href: "/shop/products?cat=kitchen", image: "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=900&q=80" },
   { label: "Accessories", category: "accessories", href: "/shop/products?cat=accessories", image: "https://images.unsplash.com/photo-1511556820780-d912e42b4980?auto=format&fit=crop&w=900&q=80" },
 ] as const;
 
 const sectionSkeletons = Array.from({ length: 5 }, (_, index) => index);
+
+const normalizeCategory = (category: string) => category.trim().toLowerCase();
+
+const categoryAliases: Record<string, string[]> = {
+  fashion: ["fashion", "men's clothing", "women's clothing"],
+  menswear: ["men's clothing"],
+  womenswear: ["women's clothing"],
+  "premium dry fruits": ["premium dry fruits", "dry fruits", "grocery"],
+};
+
+const productMatchesCategory = (product: Product, category: string) => {
+  const selected = normalizeCategory(category);
+  const actual = normalizeCategory(product.category);
+
+  if (selected === "all") return true;
+
+  return (categoryAliases[selected] ?? [selected]).includes(actual);
+};
+
+const productsByCategory = (products: Product[], category: string) =>
+  products.filter((product) => productMatchesCategory(product, category));
 
 const ProductSection = memo(function ProductSection({
   title,
@@ -138,7 +159,9 @@ export default function HomePage() {
         ...category,
         image:
           ("image" in category ? category.image : undefined) ??
-          products.find((product) => product.category === category.category)
+          products.find((product) =>
+            productMatchesCategory(product, category.category)
+          )
             ?.image ?? products[0]?.image,
       })),
     [products]
@@ -154,7 +177,7 @@ export default function HomePage() {
     () =>
       selectedCategory === "all"
         ? products
-        : products.filter((product) => product.category === selectedCategory),
+        : productsByCategory(products, selectedCategory),
     [products, selectedCategory]
   );
 
@@ -168,9 +191,9 @@ export default function HomePage() {
     });
   };
 
-  const trending = useMemo(
+  const electronics = useMemo(
     () =>
-      [...products]
+      productsByCategory(products, "electronics")
         .sort((a, b) => (b.rating?.count ?? 0) - (a.rating?.count ?? 0))
         .slice(0, 5),
     [products]
@@ -189,12 +212,16 @@ export default function HomePage() {
     [products]
   );
 
-  const newArrivals = useMemo(() => [...products].reverse().slice(0, 5), [
-    products,
-  ]);
+  const fashionProducts = useMemo(
+    () => productsByCategory(products, "fashion").reverse().slice(0, 5),
+    [products]
+  );
 
-  const recommended = useMemo(
-    () => products.filter((product) => product.price > 40).slice(0, 5),
+  const dryFruitProducts = useMemo(
+    () =>
+      productsByCategory(products, "premium dry fruits")
+        .sort((a, b) => a.price - b.price)
+        .slice(0, 5),
     [products]
   );
 
@@ -349,8 +376,8 @@ export default function HomePage() {
               <ProductSection
                 title="Premium Dry Fruits & Nuts"
                 subtitle="Gift-ready packs and healthy pantry essentials."
-                href="/shop/products?cat=grocery"
-                products={recommended}
+                href="/shop/products?cat=premium%20dry%20fruits"
+                products={dryFruitProducts}
                 loading={isLoading}
               />
             </div>
@@ -358,14 +385,14 @@ export default function HomePage() {
               title="Trending in Electronics"
               subtitle="Phones, audio, wearables and everyday tech upgrades."
               href="/shop/products?cat=electronics"
-              products={trending}
+              products={electronics}
               loading={isLoading}
             />
             <ProductSection
               title="Fashion for You"
               subtitle="Fresh outfits and wardrobe essentials."
-              href="/shop/products?cat=men%27s%20clothing"
-              products={newArrivals}
+              href="/shop/products?cat=fashion"
+              products={fashionProducts}
               loading={isLoading}
             />
             <ProductSection

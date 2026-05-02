@@ -2,6 +2,24 @@ import { useMemo, useState, useCallback } from "react";
 import { Product } from "@/types/product";
 import { ProductFilters, DEFAULT_FILTERS, PriceRange } from "@/types/filter";
 
+const normalizeCategory = (category: string) => category.trim().toLowerCase();
+
+const categoryAliases: Record<string, string[]> = {
+  fashion: ["fashion", "men's clothing", "women's clothing"],
+  menswear: ["men's clothing"],
+  womenswear: ["women's clothing"],
+  "premium dry fruits": ["premium dry fruits", "dry fruits", "grocery"],
+};
+
+const productMatchesCategory = (productCategory: string, selectedCategory: string) => {
+  const selected = normalizeCategory(selectedCategory);
+  const actual = normalizeCategory(productCategory);
+
+  if (selected === "all") return true;
+
+  return (categoryAliases[selected] ?? [selected]).includes(actual);
+};
+
 export function useProductFilters(products: Product[]) {
   const [filters, setFilters] = useState<ProductFilters>(DEFAULT_FILTERS);
 
@@ -25,7 +43,8 @@ export function useProductFilters(products: Product[]) {
   const filtered = useMemo(() => {
     return products.filter((p) => {
       const matchCategory =
-        filters.category === "all" || p.category === filters.category;
+        filters.category === "all" ||
+        productMatchesCategory(p.category, filters.category);
 
       const matchPrice =
         p.price >= filters.priceRange.min &&

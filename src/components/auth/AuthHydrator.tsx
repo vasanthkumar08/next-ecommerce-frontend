@@ -51,7 +51,7 @@ export default function AuthHydrator() {
           ? error.response?.status
           : undefined;
 
-        if (status === 401 || status === 403) {
+        if ((status === 401 || status === 403) && !storedUser && !storedAccessToken) {
           clearAuthSession();
           dispatch(hydrateAuth({ user: null, accessToken: null }));
         }

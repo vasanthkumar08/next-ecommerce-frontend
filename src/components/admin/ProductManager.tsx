@@ -93,11 +93,7 @@ export function ProductManager({ canManage = true }: { canManage?: boolean }) {
     return () => window.clearTimeout(timer);
   }, [category, dispatch, page, query]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [category, query]);
-
-  const products = data?.products ?? [];
+  const products = useMemo(() => data?.products ?? [], [data?.products]);
   const totalPages = Math.max(data?.pages ?? 1, 1);
 
   const categories = useMemo(() => {
@@ -209,15 +205,25 @@ export function ProductManager({ canManage = true }: { canManage?: boolean }) {
               <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <Input
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setPage(1);
+                }}
                 placeholder="Search products by name or SKU"
                 className={`${inputClass} pl-9`}
               />
             </div>
-            <select className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-black outline-none focus:ring-2 focus:ring-[#2563EB]">
-              <option>All categories</option>
+            <select
+              value={category}
+              onChange={(event) => {
+                setCategory(event.target.value);
+                setPage(1);
+              }}
+              className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-black outline-none focus:ring-2 focus:ring-[#2563EB]"
+            >
+              <option value="all">All categories</option>
               {categories.map((category) => (
-                <option key={category}>{category}</option>
+                <option key={category} value={category}>{category}</option>
               ))}
             </select>
           </div>

@@ -31,10 +31,6 @@ export function AdminUsersClient() {
     return () => window.clearTimeout(timer);
   }, [dispatch, page, search]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [search]);
-
   const users = data?.users ?? [];
   const totalPages = Math.max(data?.pages ?? 1, 1);
 
@@ -73,7 +69,10 @@ export function AdminUsersClient() {
           <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
           <Input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
             placeholder="Search users"
             className="rounded-lg border-slate-200 bg-white pl-9 text-black placeholder:text-slate-400 focus-visible:ring-[#2563EB]"
           />

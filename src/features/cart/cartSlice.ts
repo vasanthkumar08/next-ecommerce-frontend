@@ -7,9 +7,10 @@ export interface CartItem extends Product {
 
 interface CartState {
   items: CartItem[];
+  hydrated: boolean;
 }
 
-const initialState: CartState = { items: [] };
+const initialState: CartState = { items: [], hydrated: false };
 
 const cartSlice = createSlice({
   name: "cart",
@@ -45,6 +46,7 @@ const cartSlice = createSlice({
 
     hydrateCart: (state, action: PayloadAction<CartItem[] | undefined>) => {
       state.items = action.payload ?? [];
+      state.hydrated = true;
     },
   },
 });

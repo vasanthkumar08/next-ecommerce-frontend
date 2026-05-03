@@ -1,6 +1,5 @@
 import { Product } from "@/types/product";
 import api from "@/lib/axios";
-import { fetchMockProductById, fetchMockProducts } from "@/services/mockProducts";
 
 interface ProductImage {
   url: string;
@@ -116,15 +115,13 @@ export const getProducts = async (): Promise<Product[]> => {
     });
     const products = getProductList(res.data).map(toProduct);
 
-    const result = products.length > 0 ? products : await fetchMockProducts();
-    productListCache.data = result;
+    productListCache.data = products;
     productListCache.expiresAt = Date.now() + cacheTtlMs;
-    return result;
-  } catch {
-    const fallbackProducts = await fetchMockProducts();
-    productListCache.data = fallbackProducts;
-    productListCache.expiresAt = Date.now() + cacheTtlMs;
-    return fallbackProducts;
+    return products;
+  } catch (error) {
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to fetch products from database");
   } finally {
     productListCache.pending = null;
   }
@@ -154,14 +151,9 @@ export const getProductById = async (id: string): Promise<Product> => {
     const product = toProduct(res.data.data);
     productByIdCache.set(id, { data: product, expiresAt: Date.now() + cacheTtlMs });
     return product;
-  } catch {
-    const product = await fetchMockProductById(id);
-
-    if (!product) {
-      throw new Error("Product not found");
-    }
-
-    productByIdCache.set(id, { data: product, expiresAt: Date.now() + cacheTtlMs });
-    return product;
+  } catch (error) {
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to fetch product from database");
   }
 };

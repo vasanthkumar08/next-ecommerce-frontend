@@ -32,6 +32,10 @@ const demoUsers: Array<AuthUser & { password: string }> = [
   },
 ];
 
+const demoLoginEnabled =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXTAUTH_DEMO_LOGIN_ENABLED === "true";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret:
     process.env.AUTH_SECRET ??
@@ -52,6 +56,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(rawCredentials) {
+        if (!demoLoginEnabled) {
+          return null;
+        }
+
         const parsed = credentialsSchema.safeParse(rawCredentials);
 
         if (!parsed.success) {

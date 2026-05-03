@@ -3,7 +3,7 @@ import { getApiBaseUrl } from "@/lib/apiUrl";
 import { NextResponse } from "next/server";
 
 const publicRoutes = ["/", "/login", "/register", "/unauthorized"];
-const accessTokenMaxAge = 15 * 60;
+const accessTokenMaxAge = 7 * 24 * 60 * 60;
 
 interface RefreshResponse {
   success: boolean;
@@ -102,23 +102,11 @@ export async function proxy(request: Request) {
     }
   }
 
-  const userOnlyRoutes = ["/cart", "/checkout", "/profile", "/shop/cart", "/shop/checkout"];
-  if (userOnlyRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {
-    if (!session) {
-      return NextResponse.redirect(new URL("/login", nextUrl));
-    }
-  }
-
   return refreshedResponse ?? NextResponse.next();
 }
 
 export const config = {
   matcher: [
     "/admin/:path*",
-    "/cart/:path*",
-    "/checkout/:path*",
-    "/profile/:path*",
-    "/shop/cart/:path*",
-    "/shop/checkout/:path*",
   ],
 };

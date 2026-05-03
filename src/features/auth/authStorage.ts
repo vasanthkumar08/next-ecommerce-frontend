@@ -4,7 +4,7 @@ import { getApiBaseUrl } from "@/lib/apiUrl";
 const AUTH_TOKEN_KEY = "vasanthtrends.accessToken";
 const AUTH_USER_KEY = "vasanthtrends.user";
 const ACCESS_COOKIE_NAME = "accessToken";
-const ACCESS_COOKIE_MAX_AGE_SECONDS = 15 * 60;
+const ACCESS_COOKIE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
 const canUseStorage = () => typeof window !== "undefined";
 

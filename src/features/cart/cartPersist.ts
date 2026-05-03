@@ -1,12 +1,19 @@
 import { CartItem } from "./cartSlice";
 
-export const saveCart = (state: CartItem[]) => {
+const getCartKey = (userId?: string | null) =>
+  userId ? `cart:${userId}` : "cart:guest";
+
+export const saveCart = (state: CartItem[], userId?: string | null) => {
   if (typeof window === "undefined") return;
-  localStorage.setItem("cart", JSON.stringify(state));
+  localStorage.setItem(getCartKey(userId), JSON.stringify(state));
 };
 
-export const loadCart = (): CartItem[] | undefined => {
+export const loadCart = (userId?: string | null): CartItem[] | undefined => {
   if (typeof window === "undefined") return undefined;
-  const data = localStorage.getItem("cart");
-  return data ? (JSON.parse(data) as CartItem[]) : undefined;
+  const data = localStorage.getItem(getCartKey(userId));
+
+  if (data) return JSON.parse(data) as CartItem[];
+
+  const legacyCart = localStorage.getItem("cart");
+  return legacyCart ? (JSON.parse(legacyCart) as CartItem[]) : undefined;
 };

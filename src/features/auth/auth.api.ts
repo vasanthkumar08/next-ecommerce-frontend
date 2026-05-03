@@ -1,6 +1,5 @@
 import api from "@/lib/axios";
 import axios from "axios";
-import { mockLogin, mockRegister } from "@/services/mockAuth";
 
 /**
  * 👤 Types
@@ -56,7 +55,7 @@ export const loginUser = async (
       }
     }
 
-    return mockLogin(data);
+    throw new Error("Login failed");
   }
 };
 
@@ -78,6 +77,6 @@ export const registerUser = async (
       }
     }
 
-    return mockRegister(data);
+    throw new Error("Registration failed");
   }
 };

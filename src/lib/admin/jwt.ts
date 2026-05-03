@@ -20,6 +20,10 @@ export async function verifyAdminToken(
   token: string
 ): Promise<AdminJwtPayload | null> {
   if (token.startsWith("mock.")) {
+    if (process.env.NODE_ENV === "production") {
+      return null;
+    }
+
     try {
       const payload = JSON.parse(atob(token.slice(5))) as Partial<AdminJwtPayload>;
 

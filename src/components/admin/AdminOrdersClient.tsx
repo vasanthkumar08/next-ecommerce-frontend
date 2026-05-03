@@ -100,10 +100,11 @@ export function AdminOrdersClient({ canManage = true }: { canManage?: boolean })
             }}
             className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-black outline-none focus:ring-2 focus:ring-[#2563EB]"
           >
-            <option value="all">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
+            {statuses.map((statusOption) => (
+              <option key={statusOption} value={statusOption}>
+                {statusOption === "all" ? "All statuses" : statusOption[0].toUpperCase() + statusOption.slice(1)}
+              </option>
+            ))}
           </select>
           <Button
             variant="outline"

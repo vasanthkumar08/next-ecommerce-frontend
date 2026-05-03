@@ -61,7 +61,8 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    setThemeMounted(true);
+    const timer = window.setTimeout(() => setThemeMounted(true), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {

@@ -50,15 +50,19 @@ function ProductsPageContent() {
     setCategory(category);
     setSearch(query);
 
-    if (
-      requestedSort === "price-asc" ||
-      requestedSort === "price-desc" ||
-      requestedSort === "rating"
-    ) {
-      setSort(requestedSort);
-    } else {
-      setSort("default");
-    }
+    const timer = window.setTimeout(() => {
+      if (
+        requestedSort === "price-asc" ||
+        requestedSort === "price-desc" ||
+        requestedSort === "rating"
+      ) {
+        setSort(requestedSort);
+      } else {
+        setSort("default");
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [searchParams, setCategory, setSearch]);
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);

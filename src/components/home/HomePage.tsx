@@ -13,6 +13,7 @@ import {
 import ProductCard from "@/components/ui/ProductCard";
 import { ProductCardSkeleton } from "@/components/ui/Skeleton";
 import HeroCarousel from "@/components/HeroCarousel";
+import DryFruitsGrid from "@/components/home/DryFruitsGrid";
 import type { Product } from "@/types/product";
 
 interface ProductSectionProps {
@@ -59,9 +60,9 @@ const PREMIUM_CATEGORY_GROUPS = [
           "https://images.unsplash.com/photo-1599599810769-bcde5a160d32?auto=format&fit=crop&w=900&q=85",
       },
       {
-        name: "Walnuts",
+        name: "Dates",
         image:
-          "https://images.unsplash.com/photo-1508061253366-f7da158b6d46?auto=format&fit=crop&w=900&q=85",
+          "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=900&q=85",
       },
     ],
   },
@@ -87,7 +88,7 @@ const PREMIUM_CATEGORY_GROUPS = [
       {
         name: "Grains",
         image:
-          "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=900&q=85",
+          "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=85",
       },
     ],
   },
@@ -514,6 +515,7 @@ export default function HomePage() {
               products={recentlyViewed}
               loading={isLoading}
             />
+            <DryFruitsGrid />
             <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
               <Link
                 href="/shop/products?sort=price-asc"

@@ -11,6 +11,8 @@ export interface ShippingAddress {
   country: string;
 }
 
+const objectIdPattern = /^[a-f\d]{24}$/i;
+
 interface CreateOrderResponse {
   success: boolean;
   message: string;
@@ -75,13 +77,18 @@ export const createOrder = async (
   paymentMethod: PaymentMethod,
   userId = "guest"
 ): Promise<Order> => {
+  const invalidItem = items.find((item) => !objectIdPattern.test(item.id));
+
+  if (invalidItem) {
+    throw new Error(
+      `${invalidItem.title} is no longer available. Remove it from cart and add it again.`
+    );
+  }
+
   const res = await api.post<CreateOrderResponse>("/v1/orders", {
     items: items.map((item) => ({
       productId: item.id,
-      name: item.title,
       quantity: item.quantity,
-      price: item.price,
-      image: item.image,
     })),
     totalAmount: total,
     shippingAddress,

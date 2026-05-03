@@ -8,6 +8,7 @@ import {
   removeAdminOrderOptimistic,
 } from "@/features/admin/adminOrderSlice";
 import { deleteAdminOrder, updateAdminOrderStatus } from "@/features/admin/admin.api";
+import { getApiBaseUrl } from "@/lib/apiUrl";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { Badge } from "@/components/ui/Badge";
 import type { BadgeVariant } from "@/components/ui/Badge";
@@ -107,7 +108,7 @@ export function AdminOrdersClient({ canManage = true }: { canManage?: boolean })
           <Button
             variant="outline"
             onClick={() => {
-              window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/v1/admin/orders/export.csv`;
+              window.location.href = `${getApiBaseUrl()}/v1/admin/orders/export.csv`;
             }}
           >
             <Download className="h-4 w-4" />

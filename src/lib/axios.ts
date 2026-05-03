@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getApiBaseUrl } from "@/lib/apiUrl";
 import {
   clearAuthSession,
   getStoredAccessToken,
@@ -7,7 +8,7 @@ import {
 import type { AuthResponse } from "@/features/auth/auth.api";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: getApiBaseUrl(),
   withCredentials: true,
   timeout: 10_000,
   headers: {
@@ -18,7 +19,7 @@ const api = axios.create({
 let refreshPromise: Promise<AuthResponse> | null = null;
 
 const refreshAuthSession = async () => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const apiUrl = getApiBaseUrl();
 
   if (!apiUrl) {
     throw new Error("NEXT_PUBLIC_API_URL is not configured");

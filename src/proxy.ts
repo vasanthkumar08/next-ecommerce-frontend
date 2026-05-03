@@ -1,4 +1,5 @@
 import { adminTokenCookie, verifyAdminToken } from "@/lib/admin/jwt";
+import { getApiBaseUrl } from "@/lib/apiUrl";
 import { NextResponse } from "next/server";
 
 const publicRoutes = ["/", "/login", "/register", "/unauthorized"];
@@ -21,7 +22,7 @@ function getCookieValue(cookieHeader: string, name: string) {
 }
 
 async function refreshSession(cookieHeader: string, nextUrl: URL) {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const apiUrl = getApiBaseUrl();
   const refreshToken = getCookieValue(cookieHeader, "refreshToken");
 
   if (!apiUrl || !refreshToken) {

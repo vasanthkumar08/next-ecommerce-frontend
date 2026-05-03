@@ -10,6 +10,7 @@ import { z } from "zod";
 import { persistAuthSession } from "@/features/auth/authStorage";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { getApiBaseUrl } from "@/lib/apiUrl";
 
 const schema = z.object({
   email: z.string().email(),
@@ -40,7 +41,7 @@ export function AdminLoginForm() {
 
   function onSubmit(values: Values) {
     startTransition(async () => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/auth/login`, {
+      const response = await fetch(`${getApiBaseUrl()}/v1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

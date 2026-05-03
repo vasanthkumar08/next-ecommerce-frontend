@@ -1,4 +1,5 @@
 import type { User } from "./auth.api";
+import { getApiBaseUrl } from "@/lib/apiUrl";
 
 const AUTH_TOKEN_KEY = "vasanthtrends.accessToken";
 const AUTH_USER_KEY = "vasanthtrends.user";
@@ -54,7 +55,7 @@ export const clearAuthSession = () => {
   window.localStorage.removeItem(AUTH_TOKEN_KEY);
   window.localStorage.removeItem(AUTH_USER_KEY);
   clearAccessTokenCookie();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const apiUrl = getApiBaseUrl();
 
   if (apiUrl) {
     void fetch(`${apiUrl}/v1/auth/logout`, {

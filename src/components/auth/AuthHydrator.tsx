@@ -4,6 +4,7 @@ import axios from "axios";
 import { useEffect } from "react";
 import { hydrateAuth } from "@/features/auth/authSlice";
 import type { AuthResponse } from "@/features/auth/auth.api";
+import { getApiBaseUrl } from "@/lib/apiUrl";
 import {
   clearAuthSession,
   getStoredAccessToken,
@@ -27,7 +28,7 @@ export default function AuthHydrator() {
       })
     );
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    const apiUrl = getApiBaseUrl();
     if (!apiUrl || (!storedUser && !storedAccessToken)) return;
 
     axios

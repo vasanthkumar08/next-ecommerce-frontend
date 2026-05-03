@@ -6,8 +6,11 @@ export function normalizeApiBaseUrl(apiUrl: string) {
   try {
     const url = new URL(trimmed);
     const pathParts = url.pathname.split("/").filter(Boolean);
+    const apiIndex = pathParts.lastIndexOf("api");
 
-    if (pathParts[pathParts.length - 1] !== "api") {
+    if (apiIndex >= 0) {
+      url.pathname = `/${pathParts.slice(0, apiIndex + 1).join("/")}`;
+    } else {
       pathParts.push("api");
       url.pathname = `/${pathParts.join("/")}`;
     }
@@ -17,7 +20,13 @@ export function normalizeApiBaseUrl(apiUrl: string) {
 
     return url.toString().replace(/\/+$/, "");
   } catch {
-    return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+    const apiIndex = trimmed.lastIndexOf("/api");
+
+    if (apiIndex >= 0) {
+      return trimmed.slice(0, apiIndex + 4);
+    }
+
+    return `${trimmed}/api`;
   }
 }
 

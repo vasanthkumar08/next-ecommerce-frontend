@@ -1,4 +1,5 @@
 import api from "@/lib/axios";
+import axios from "axios";
 import { CartItem } from "@/features/cart/cartSlice";
 import type { Order } from "@/features/orders/ordersSlice";
 
@@ -85,15 +86,25 @@ export const createOrder = async (
     );
   }
 
-  const res = await api.post<CreateOrderResponse>("/v1/orders", {
-    items: items.map((item) => ({
-      productId: item.id,
-      quantity: item.quantity,
-    })),
-    totalAmount: total,
-    shippingAddress,
-    paymentMethod,
-  });
+  let res;
+
+  try {
+    res = await api.post<CreateOrderResponse>("/v1/orders", {
+      items: items.map((item) => ({
+        productId: item.id,
+        quantity: item.quantity,
+      })),
+      totalAmount: total,
+      shippingAddress,
+      paymentMethod,
+    });
+  } catch (error) {
+    if (axios.isAxiosError<{ message?: string }>(error)) {
+      throw new Error(error.response?.data?.message ?? "Order could not be placed");
+    }
+
+    throw error;
+  }
 
   return {
     id: res.data.data.id,

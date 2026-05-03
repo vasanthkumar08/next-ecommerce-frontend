@@ -11,6 +11,7 @@ function getJwtSecret() {
   return new TextEncoder().encode(
     process.env.JWT_SECRET ??
       process.env.AUTH_SECRET ??
+      process.env.NEXTAUTH_SECRET ??
       "dev-only-rbac-dashboard-secret-change-me"
   );
 }

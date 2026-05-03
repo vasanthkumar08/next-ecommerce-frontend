@@ -36,6 +36,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   secret:
     process.env.AUTH_SECRET ??
     process.env.NEXTAUTH_SECRET ??
+    process.env.JWT_SECRET ??
     (process.env.NODE_ENV === "production"
       ? undefined
       : "dev-only-rbac-dashboard-secret-change-me"),

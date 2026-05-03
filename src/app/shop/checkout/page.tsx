@@ -31,6 +31,7 @@ type CardDetails = {
 
 type CheckoutForm = {
   fullName: string;
+  phone: string;
   address: string;
   city: string;
   postalCode: string;
@@ -147,8 +148,14 @@ export default function CheckoutPage() {
   }, [cardDetails, paymentMethod, upiMethod]);
 
   const onAddressSubmit = useCallback((data: CheckoutForm) => {
+    if (!/^[6-9]\d{9}$/.test(data.phone.trim())) {
+      setError("Enter a valid 10-digit phone number.");
+      return;
+    }
+
     setShippingAddress({
       address: `${data.fullName}, ${data.address}`,
+      phone: data.phone.trim(),
       city: data.city,
       pincode: data.postalCode,
       country: data.country,
@@ -418,6 +425,23 @@ export default function CheckoutPage() {
               )}
               <input
                 className="input-base md:col-span-2"
+                inputMode="tel"
+                placeholder="Phone number"
+                {...register("phone", {
+                  required: "Phone number is required",
+                  pattern: {
+                    value: /^[6-9]\d{9}$/,
+                    message: "Enter a valid 10-digit phone number",
+                  },
+                })}
+              />
+              {errors.phone && (
+                <p className="text-xs text-red-500 md:col-span-2">
+                  {errors.phone.message}
+                </p>
+              )}
+              <input
+                className="input-base md:col-span-2"
                 placeholder="House, street, area"
                 {...register("address", { required: "Address is required" })}
               />
@@ -593,6 +617,11 @@ export default function CheckoutPage() {
                 <p className="mt-2 font-semibold text-[#0f172a]">
                   {shippingAddress?.address}
                 </p>
+                {shippingAddress?.phone && (
+                  <p className="text-sm text-[#64748b]">
+                    Phone: {shippingAddress.phone}
+                  </p>
+                )}
                 <p className="text-sm text-[#64748b]">
                   {shippingAddress?.city}, {shippingAddress?.pincode},{" "}
                   {shippingAddress?.country}

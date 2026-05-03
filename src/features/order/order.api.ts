@@ -7,6 +7,7 @@ export type PaymentMethod = "cod" | "credit_card" | "debit_card" | "upi";
 
 export interface ShippingAddress {
   address: string;
+  phone?: string;
   city: string;
   pincode: string;
   country: string;

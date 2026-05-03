@@ -12,6 +12,7 @@ import { login } from "@/features/auth/authSlice";
 import { useAppDispatch } from "@/store/hooks";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { canUseLoginNext, getRoleHome } from "@/lib/auth/roleRedirect";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -43,19 +44,13 @@ export function UnifiedLoginForm() {
       toast.success("Success");
 
       const next = searchParams.get("next");
-      if (
-        next &&
-        next.startsWith("/") &&
-        !next.startsWith("//") &&
-        ((user.role === "admin" && next.startsWith("/admin")) ||
-          ((user.role === "user" || user.role === "manager") && !next.startsWith("/admin")))
-      ) {
-        router.push(next);
+      if (next && canUseLoginNext(user.role, next)) {
+        router.replace(next);
         router.refresh();
         return;
       }
 
-      router.push(user.role === "admin" || user.role === "manager" ? "/admin" : "/");
+      router.replace(getRoleHome(user.role));
       router.refresh();
     });
   }

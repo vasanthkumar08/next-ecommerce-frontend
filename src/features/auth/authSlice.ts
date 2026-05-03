@@ -20,6 +20,7 @@ interface AuthState {
   user: User | null;
   accessToken: string | null;
   loading: boolean;
+  hydrated: boolean;
   error: string | null;
   isAuthenticated: boolean;
 }
@@ -28,6 +29,7 @@ const initialState: AuthState = {
   user: null,
   accessToken: null,
   loading: false,
+  hydrated: false,
   error: null,
   isAuthenticated: false,
 };
@@ -89,11 +91,13 @@ const authSlice = createSlice({
       state.isAuthenticated = Boolean(
         action.payload.user && action.payload.accessToken
       );
+      state.hydrated = true;
     },
     logout: (state) => {
       state.user = null;
       state.accessToken = null;
       state.isAuthenticated = false;
+      state.hydrated = true;
       clearAuthSession();
     },
   },
@@ -108,6 +112,7 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.accessToken = action.payload.accessToken;
         state.isAuthenticated = true;
+        state.hydrated = true;
         persistAuthSession(action.payload.accessToken, action.payload.user);
       })
       .addCase(login.rejected, (state, action) => {

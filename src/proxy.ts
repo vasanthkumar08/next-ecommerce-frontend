@@ -13,6 +13,15 @@ interface RefreshResponse {
   };
 }
 
+interface MeResponse {
+  success: boolean;
+  data?: {
+    _id?: string;
+    id?: string;
+    role?: "admin" | "user" | "manager";
+  };
+}
+
 function getCookieValue(cookieHeader: string, name: string) {
   return cookieHeader
     .split(";")
@@ -44,9 +53,11 @@ async function refreshSession(cookieHeader: string, nextUrl: URL) {
     }
 
     const body = (await refreshResponse.json()) as RefreshResponse;
-    const session = await verifyAdminToken(body.accessToken);
+    const verified = await verifyAdminToken(body.accessToken);
+    const backendSession =
+      verified ?? (await verifySessionWithBackend(body.accessToken));
 
-    if (!body.success || !session) {
+    if (!body.success || !backendSession) {
       return null;
     }
 
@@ -63,7 +74,44 @@ async function refreshSession(cookieHeader: string, nextUrl: URL) {
       response.headers.append("set-cookie", rotatedRefreshCookie);
     }
 
-    return { session, response };
+    return { session: backendSession, response };
+  } catch {
+    return null;
+  }
+}
+
+async function verifySessionWithBackend(token: string) {
+  const apiUrl = getApiBaseUrl();
+
+  if (!apiUrl) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${apiUrl}/v1/auth/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const body = (await response.json()) as MeResponse;
+    const role = body.data?.role;
+    const sub = body.data?._id ?? body.data?.id;
+
+    if (
+      !body.success ||
+      typeof sub !== "string" ||
+      (role !== "admin" && role !== "manager" && role !== "user")
+    ) {
+      return null;
+    }
+
+    return { sub, role };
   } catch {
     return null;
   }
@@ -75,8 +123,15 @@ export async function proxy(request: Request) {
   const cookieHeader = request.headers.get("cookie") ?? "";
   const token = getCookieValue(cookieHeader, adminTokenCookie);
   const verifiedSession = token ? await verifyAdminToken(decodeURIComponent(token)) : null;
-  const refreshed = verifiedSession ? null : await refreshSession(cookieHeader, nextUrl);
-  const session = verifiedSession ?? refreshed?.session ?? null;
+  const backendSession =
+    !verifiedSession && token
+      ? await verifySessionWithBackend(decodeURIComponent(token))
+      : null;
+  const refreshed =
+    verifiedSession || backendSession
+      ? null
+      : await refreshSession(cookieHeader, nextUrl);
+  const session = verifiedSession ?? backendSession ?? refreshed?.session ?? null;
   const refreshedResponse = refreshed?.response ?? null;
   const isPublicRoute = publicRoutes.includes(pathname);
 

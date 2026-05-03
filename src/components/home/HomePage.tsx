@@ -38,6 +38,109 @@ const CATEGORY_LINKS = [
   { label: "Accessories", category: "accessories", href: "/shop/products?cat=accessories", image: "https://images.unsplash.com/photo-1511556820780-d912e42b4980?auto=format&fit=crop&w=900&q=80" },
 ] as const;
 
+const PREMIUM_CATEGORY_GROUPS = [
+  {
+    title: "Premium Dry Fruits",
+    href: "/shop/products?cat=premium%20dry%20fruits",
+    items: [
+      {
+        name: "Almonds",
+        image:
+          "https://images.unsplash.com/photo-1508061253366-f7da158b6d46?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        name: "Cashews",
+        image:
+          "https://images.unsplash.com/photo-1606923829579-0cb981a83e2e?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        name: "Pistachios",
+        image:
+          "https://images.unsplash.com/photo-1599599810769-bcde5a160d32?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        name: "Walnuts",
+        image:
+          "https://images.unsplash.com/photo-1615485291262-015b0e8f6f2f?auto=format&fit=crop&w=900&q=85",
+      },
+    ],
+  },
+  {
+    title: "Grocery",
+    href: "/shop/products?cat=grocery",
+    items: [
+      {
+        name: "Rice",
+        image:
+          "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        name: "Spices",
+        image:
+          "https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        name: "Oil",
+        image:
+          "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        name: "Grains",
+        image:
+          "https://images.unsplash.com/photo-1604908812863-6d1f6f6f49f8?auto=format&fit=crop&w=900&q=85",
+      },
+    ],
+  },
+  {
+    title: "Home Applications",
+    href: "/shop/products?cat=home",
+    items: [
+      {
+        name: "Lighting",
+        image:
+          "https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        name: "Storage",
+        image:
+          "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=85",
+      },
+    ],
+  },
+  {
+    title: "Kitchen Essentials",
+    href: "/shop/products?cat=kitchen",
+    items: [
+      {
+        name: "Cookware",
+        image:
+          "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        name: "Prep Tools",
+        image:
+          "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=900&q=85",
+      },
+    ],
+  },
+  {
+    title: "Accessories",
+    href: "/shop/products?cat=accessories",
+    items: [
+      {
+        name: "Bags",
+        image:
+          "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?auto=format&fit=crop&w=900&q=85",
+      },
+      {
+        name: "Daily Carry",
+        image:
+          "https://images.unsplash.com/photo-1511556820780-d912e42b4980?auto=format&fit=crop&w=900&q=85",
+      },
+    ],
+  },
+] as const;
+
 const sectionSkeletons = Array.from({ length: 5 }, (_, index) => index);
 
 const normalizeCategory = (category: string) => category.trim().toLowerCase();
@@ -134,6 +237,68 @@ function HomeEmptyState() {
       >
         Browse shop
       </Link>
+    </section>
+  );
+}
+
+function PremiumCategoryShowcase({ loading }: { loading: boolean }) {
+  return (
+    <section className="rounded-3xl border border-orange-100 bg-white p-4 shadow-sm md:p-6">
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-xl font-black text-slate-800">
+            Premium Categories
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Image-rich collections for faster category browsing.
+          </p>
+        </div>
+        <Link
+          href="/shop/products"
+          className="w-fit rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-bold text-[#ff6700] transition hover:-translate-y-0.5 hover:bg-[#ff6700] hover:text-white active:scale-95"
+        >
+          Browse all
+        </Link>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-5">
+        {PREMIUM_CATEGORY_GROUPS.map((group) => (
+          <Link
+            key={group.title}
+            href={group.href}
+            aria-label={`Shop ${group.title}`}
+            className="group rounded-3xl border border-slate-200 bg-white p-3 shadow-sm outline-none transition hover:-translate-y-1 hover:border-orange-200 hover:shadow-md focus-visible:border-[#ff6700] focus-visible:ring-2 focus-visible:ring-orange-200 active:scale-[0.98]"
+          >
+            <div className="grid grid-cols-2 gap-2">
+              {group.items.map((item) => (
+                <div
+                  key={item.name}
+                  className="relative aspect-square overflow-hidden rounded-2xl bg-slate-100"
+                >
+                  {loading ? (
+                    <div className="h-full animate-pulse bg-slate-200" />
+                  ) : (
+                    <Image
+                      src={item.image}
+                      alt={`${group.title} ${item.name}`}
+                      fill
+                      sizes="(max-width: 1024px) 50vw, 10vw"
+                      loading="lazy"
+                      className="object-cover transition duration-500 group-hover:scale-105"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="px-1 pb-1 pt-3">
+              <p className="font-black text-slate-900">{group.title}</p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                {group.items.map((item) => item.name).join(" • ")}
+              </p>
+            </div>
+          </Link>
+        ))}
+      </div>
     </section>
   );
 }
@@ -236,6 +401,8 @@ export default function HomePage() {
     <div className="min-h-screen overflow-hidden bg-white">
       <div className="mx-auto w-full max-w-7xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
         <HeroCarousel />
+
+        <PremiumCategoryShowcase loading={isLoading} />
 
         <section>
           <div className="mb-4 flex items-end justify-between gap-3">

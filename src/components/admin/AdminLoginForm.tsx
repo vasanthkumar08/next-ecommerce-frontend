@@ -11,6 +11,7 @@ import { persistAuthSession } from "@/features/auth/authStorage";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { getApiBaseUrl } from "@/lib/apiUrl";
+import { getRoleHome } from "@/lib/auth/roleRedirect";
 
 const schema = z.object({
   email: z.string().email(),
@@ -61,7 +62,7 @@ export function AdminLoginForm() {
 
       persistAuthSession(result.accessToken, result.user);
       toast.success("Success: signed in");
-      router.push("/admin/dashboard");
+      router.replace(getRoleHome(result.user.role));
       router.refresh();
     });
   }

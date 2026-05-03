@@ -20,6 +20,7 @@ interface ProductCardProps {
 }
 
 const toRupees = (price: number) => Math.max(1, Math.round(price));
+const objectIdPattern = /^[a-f\d]{24}$/i;
 
 function getPricing(product: Product) {
   const hash = Array.from(product.id).reduce(
@@ -37,6 +38,7 @@ function ProductCard({ product }: ProductCardProps) {
   const router = useRouter();
   const pricing = useMemo(() => getPricing(product), [product]);
   const isLoggedIn = useAppSelector((state) => state.auth.isAuthenticated);
+  const authHydrated = useAppSelector((state) => state.auth.hydrated);
   const role = useAppSelector((state) => state.auth.user?.role);
 
   const isWishlisted = useAppSelector((state) =>
@@ -45,6 +47,11 @@ function ProductCard({ product }: ProductCardProps) {
 
   const handleAddToCart = useCallback(
     async (trigger?: HTMLElement | null) => {
+    if (!authHydrated) {
+      sonnerToast.info("Restoring your session...");
+      return;
+    }
+
     if (!isLoggedIn) {
       sonnerToast.error("Failed");
       router.push(`/login?next=${encodeURIComponent("/cart")}`);
@@ -57,12 +64,17 @@ function ProductCard({ product }: ProductCardProps) {
       return;
     }
 
+    if (!objectIdPattern.test(product.id)) {
+      sonnerToast.error("This product is still syncing. Please refresh and try again.");
+      return;
+    }
+
     await flyProductImageToCart(trigger);
       dispatch(addToCart(product));
       openCartDrawer(product);
       sonnerToast.success("Success");
     },
-    [dispatch, isLoggedIn, product, role, router]
+    [authHydrated, dispatch, isLoggedIn, product, role, router]
   );
 
   const handleWishlist = useCallback(() => {

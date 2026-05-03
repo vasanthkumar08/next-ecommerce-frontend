@@ -215,12 +215,15 @@ export default function Navbar() {
       </nav>
 
       <div className="border-t border-slate-100 bg-white">
-        <div className="mx-auto flex w-full max-w-7xl gap-2 overflow-hidden px-4 py-2 text-sm font-bold text-slate-700 sm:px-6 lg:px-8">
+        <div
+          className="mx-auto flex w-full max-w-7xl gap-2 overflow-x-auto px-4 py-2 text-sm font-bold text-slate-700 scrollbar-thin scrollbar-thumb-orange-200 sm:px-6 lg:px-8"
+          aria-label="Product categories"
+        >
           {categories.map(({ label, href, icon: Icon }) => (
             <Link
               key={label}
               href={href}
-              className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-transparent text-slate-700 transition hover:-translate-y-0.5 hover:border-orange-200 hover:bg-white hover:text-[#ff6700] hover:shadow-sm active:scale-95"
+              className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-transparent text-slate-700 outline-none transition hover:-translate-y-0.5 hover:border-orange-200 hover:bg-white hover:text-[#ff6700] hover:shadow-sm focus-visible:border-[#ff6700] focus-visible:ring-2 focus-visible:ring-orange-200 active:scale-95"
               aria-label={label}
               title={label}
             >

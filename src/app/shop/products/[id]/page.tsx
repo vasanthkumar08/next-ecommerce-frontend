@@ -52,6 +52,7 @@ export default function ProductDetailsPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const isLoggedIn = useAppSelector((state) => state.auth.isAuthenticated);
+  const authHydrated = useAppSelector((state) => state.auth.hydrated);
   const user = useAppSelector((state) => state.auth.user);
   const [product, setProduct] = useState<Product | null>(null);
   const [related, setRelated] = useState<Product[]>([]);
@@ -98,6 +99,7 @@ export default function ProductDetailsPage() {
 
   const handleAddToCart = useCallback(async (trigger?: HTMLElement | null) => {
     if (!product) return;
+    if (!authHydrated) return;
     if (!isLoggedIn) {
       router.push(`/login?next=${encodeURIComponent("/cart")}`);
       return;
@@ -105,7 +107,7 @@ export default function ProductDetailsPage() {
     await flyProductImageToCart(trigger);
     dispatch(addToCart(product));
     openCartDrawer(product);
-  }, [dispatch, isLoggedIn, product, router]);
+  }, [authHydrated, dispatch, isLoggedIn, product, router]);
 
   const averageRating = useMemo(() => {
     if (reviews.length === 0) return product?.rating.rate ?? 0;
@@ -122,6 +124,11 @@ export default function ProductDetailsPage() {
       event.preventDefault();
 
       if (!product) return;
+
+      if (!authHydrated) {
+        setReviewError("Restoring your session. Please try again in a moment.");
+        return;
+      }
 
       if (!isLoggedIn || !user) {
         router.push(`/login?next=${encodeURIComponent(`/shop/products/${product.id}`)}`);
@@ -154,7 +161,7 @@ export default function ProductDetailsPage() {
         setReviewLoading(false);
       }
     },
-    [isLoggedIn, product, reviewComment, reviewRating, router, user]
+    [authHydrated, isLoggedIn, product, reviewComment, reviewRating, router, user]
   );
 
   if (loading) {

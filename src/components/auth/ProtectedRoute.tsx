@@ -10,15 +10,15 @@ export default function ProtectedRoute({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, loading } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, loading, hydrated } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    if (hydrated && !loading && !isAuthenticated) {
       router.push("/login");
     }
-  }, [isAuthenticated, loading, router]);
+  }, [hydrated, isAuthenticated, loading, router]);
 
-  if (loading) {
+  if (!hydrated || loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#1a73e8] border-t-transparent" />

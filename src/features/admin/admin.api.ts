@@ -1,9 +1,4 @@
 ﻿import api from "@/lib/axios";
-import {
-  deleteMockProduct,
-  getMockAdminProducts,
-  upsertMockProduct,
-} from "@/services/mockDatabase";
 import type {
   ApiResponse,
   DashboardStats,
@@ -68,68 +63,31 @@ export async function fetchAdminProducts(params?: {
   limit?: number;
   category?: string;
 }) {
-  try {
-    const response = await api.get<ApiResponse<ProductsApiData | AdminProduct[]>>("/v1/products", {
-      params,
-    });
-    const normalized = normalizeProducts(response.data.data);
-    return normalized.products.length
-      ? normalized
-      : normalizeProducts(await getMockAdminProducts());
-  } catch {
-    return normalizeProducts(await getMockAdminProducts());
-  }
+  const response = await api.get<ApiResponse<ProductsApiData | AdminProduct[]>>("/v1/products", {
+    params,
+  });
+  return normalizeProducts(response.data.data);
 }
 
 export async function createAdminProduct(payload: ProductPayload) {
-  try {
-    const response = await api.post<ApiResponse<AdminProduct>>(
-      "/v1/products",
-      payload
-    );
-    return response.data.data;
-  } catch {
-    return upsertMockProduct({
-      name: payload.name,
-      price: payload.price,
-      image: payload.images[0]?.url ?? "/placeholder.png",
-      description: payload.description,
-      category: payload.category,
-      countInStock: payload.countInStock ?? payload.stock,
-    });
-  }
+  const response = await api.post<ApiResponse<AdminProduct>>(
+    "/v1/products",
+    payload
+  );
+  return response.data.data;
 }
 
 export async function updateAdminProduct(id: string, payload: ProductPayload) {
-  try {
-    const response = await api.put<ApiResponse<AdminProduct>>(
-      `/v1/products/${id}`,
-      payload
-    );
-    return response.data.data;
-  } catch {
-    return upsertMockProduct(
-      {
-        name: payload.name,
-        price: payload.price,
-        image: payload.images[0]?.url ?? "/placeholder.png",
-        description: payload.description,
-        category: payload.category,
-        countInStock: payload.countInStock ?? payload.stock,
-      },
-      id
-    );
-  }
+  const response = await api.put<ApiResponse<AdminProduct>>(
+    `/v1/products/${id}`,
+    payload
+  );
+  return response.data.data;
 }
 
 export async function deleteAdminProduct(id: string) {
-  try {
-    const response = await api.delete<ApiResponse<null>>(`/v1/products/${id}`);
-    return response.data;
-  } catch {
-    await deleteMockProduct(id);
-    return { success: true, message: "Product deleted", data: null };
-  }
+  const response = await api.delete<ApiResponse<null>>(`/v1/products/${id}`);
+  return response.data;
 }
 
 export async function fetchAdminOrders(params?: { page?: number; limit?: number; status?: string }) {

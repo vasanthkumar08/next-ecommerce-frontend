@@ -95,6 +95,7 @@ export default function CheckoutPage() {
   const { items } = useAppSelector((state) => state.cart);
   const user = useAppSelector((state) => state.auth.user);
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const authHydrated = useAppSelector((state) => state.auth.hydrated);
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -244,6 +245,11 @@ export default function CheckoutPage() {
   );
 
   const handleCheckout = useCallback(async () => {
+    if (!authHydrated) {
+      setError("Restoring your session. Please try again in a moment.");
+      return;
+    }
+
     if (!isAuthenticated) {
       router.push("/login?next=/shop/checkout");
       return;
@@ -281,6 +287,7 @@ export default function CheckoutPage() {
     }
   }, [
     dispatch,
+    authHydrated,
     isAuthenticated,
     items,
     openRazorpay,

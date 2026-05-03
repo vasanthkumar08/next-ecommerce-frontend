@@ -3,6 +3,7 @@ import { getApiBaseUrl } from "@/lib/apiUrl";
 
 const AUTH_TOKEN_KEY = "vasanthtrends.accessToken";
 const AUTH_USER_KEY = "vasanthtrends.user";
+export const AUTH_SESSION_EVENT = "vasanthtrends:auth-session";
 const ACCESS_COOKIE_NAME = "accessToken";
 const ACCESS_COOKIE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
@@ -10,6 +11,12 @@ const canUseStorage = () => typeof window !== "undefined";
 
 const getCookieSecurity = () =>
   window.location.protocol === "https:" ? "; Secure" : "";
+
+const notifyAuthSessionChanged = () => {
+  window.setTimeout(() => {
+    window.dispatchEvent(new Event(AUTH_SESSION_EVENT));
+  }, 0);
+};
 
 export const persistAccessTokenCookie = (accessToken: string) => {
   if (!canUseStorage()) return;
@@ -48,6 +55,7 @@ export const persistAuthSession = (accessToken: string, user: User) => {
   window.localStorage.setItem(AUTH_TOKEN_KEY, accessToken);
   window.localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
   persistAccessTokenCookie(accessToken);
+  notifyAuthSessionChanged();
 };
 
 export const clearAuthSession = () => {
@@ -55,6 +63,7 @@ export const clearAuthSession = () => {
   window.localStorage.removeItem(AUTH_TOKEN_KEY);
   window.localStorage.removeItem(AUTH_USER_KEY);
   clearAccessTokenCookie();
+  notifyAuthSessionChanged();
   const apiUrl = getApiBaseUrl();
 
   if (apiUrl) {

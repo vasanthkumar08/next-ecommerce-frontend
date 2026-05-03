@@ -6,6 +6,7 @@ import { hydrateAuth } from "@/features/auth/authSlice";
 import type { AuthResponse } from "@/features/auth/auth.api";
 import { getApiBaseUrl } from "@/lib/apiUrl";
 import {
+  AUTH_SESSION_EVENT,
   clearAuthSession,
   getStoredAccessToken,
   getStoredUser,
@@ -18,18 +19,32 @@ export default function AuthHydrator() {
 
   useEffect(() => {
     let cancelled = false;
+
+    const hydrateFromStorage = () => {
+      dispatch(
+        hydrateAuth({
+          user: getStoredUser(),
+          accessToken: getStoredAccessToken(),
+        })
+      );
+    };
+
     const storedUser = getStoredUser();
     const storedAccessToken = getStoredAccessToken();
 
-    dispatch(
-      hydrateAuth({
-        user: storedUser,
-        accessToken: storedAccessToken,
-      })
-    );
+    hydrateFromStorage();
 
     const apiUrl = getApiBaseUrl();
-    if (!apiUrl || (!storedUser && !storedAccessToken)) return;
+    window.addEventListener(AUTH_SESSION_EVENT, hydrateFromStorage);
+    window.addEventListener("storage", hydrateFromStorage);
+
+    if (!apiUrl || (!storedUser && !storedAccessToken)) {
+      return () => {
+        cancelled = true;
+        window.removeEventListener(AUTH_SESSION_EVENT, hydrateFromStorage);
+        window.removeEventListener("storage", hydrateFromStorage);
+      };
+    }
 
     axios
       .post<AuthResponse>(`${apiUrl}/v1/auth/refresh`, {}, { withCredentials: true })
@@ -59,6 +74,8 @@ export default function AuthHydrator() {
 
     return () => {
       cancelled = true;
+      window.removeEventListener(AUTH_SESSION_EVENT, hydrateFromStorage);
+      window.removeEventListener("storage", hydrateFromStorage);
     };
   }, [dispatch]);
 

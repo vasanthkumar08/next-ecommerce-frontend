@@ -28,13 +28,15 @@ interface ProductsResponse {
   data:
     | {
         products?: BackendProduct[];
+        total?: number;
+        page?: number;
+        pages?: number;
       }
     | BackendProduct[];
   message?: string;
 }
 
-const getProductId = (product: BackendProduct) =>
-  product.id ?? product._id ?? product.name;
+const getProductId = (product: BackendProduct) => product.id ?? product._id;
 
 const categoryImages: Record<string, string> = {
   electronics:
@@ -59,19 +61,27 @@ const getProductImage = (product: BackendProduct) => {
   );
 };
 
-const toProduct = (product: BackendProduct): Product => ({
-  id: String(getProductId(product)),
-  title: product.name ?? product.title ?? "Untitled product",
-  description: product.description,
-  price: product.price,
-  image: getProductImage(product),
-  category: product.category,
-  countInStock: product.countInStock ?? product.stock,
-  rating: {
-    rate: product.ratings ?? product.rating?.rate ?? 0,
-    count: product.numReviews ?? product.rating?.count ?? 0,
-  },
-});
+const toProduct = (product: BackendProduct): Product | null => {
+  const id = getProductId(product);
+
+  if (!id) {
+    return null;
+  }
+
+  return {
+    id: String(id),
+    title: product.name ?? product.title ?? "Untitled product",
+    description: product.description,
+    price: product.price,
+    image: getProductImage(product),
+    category: product.category,
+    countInStock: product.countInStock ?? product.stock,
+    rating: {
+      rate: product.ratings ?? product.rating?.rate ?? 0,
+      count: product.numReviews ?? product.rating?.count ?? 0,
+    },
+  };
+};
 
 const getProductList = (response: ProductsResponse): BackendProduct[] => {
   const data = response.data;
@@ -91,6 +101,13 @@ const productListCache = {
 
 const productByIdCache = new Map<string, { data: Product; expiresAt: number }>();
 const cacheTtlMs = 60_000;
+
+export const invalidateProductCache = () => {
+  productListCache.data = null;
+  productListCache.expiresAt = 0;
+  productListCache.pending = null;
+  productByIdCache.clear();
+};
 
 /* ===================== SERVICES ===================== */
 
@@ -113,7 +130,9 @@ export const getProducts = async (): Promise<Product[]> => {
     const res = await api.get<ProductsResponse>("/v1/products", {
       params: { limit: 50 },
     });
-    const products = getProductList(res.data).map(toProduct);
+    const products = getProductList(res.data)
+      .map(toProduct)
+      .filter((product): product is Product => Boolean(product));
 
     productListCache.data = products;
     productListCache.expiresAt = Date.now() + cacheTtlMs;
@@ -149,6 +168,9 @@ export const getProductById = async (id: string): Promise<Product> => {
     );
 
     const product = toProduct(res.data.data);
+    if (!product) {
+      throw new Error("Product from database is missing an id");
+    }
     productByIdCache.set(id, { data: product, expiresAt: Date.now() + cacheTtlMs });
     return product;
   } catch (error) {

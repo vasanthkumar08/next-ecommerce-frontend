@@ -1,4 +1,5 @@
-﻿import api from "@/lib/axios";
+import api from "@/lib/axios";
+import { invalidateProductCache } from "@/features/product/product.api";
 import type {
   ApiResponse,
   DashboardStats,
@@ -30,7 +31,9 @@ interface ProductsApiData {
   pages?: number;
 }
 
-function normalizeProducts(data: ProductsApiData | AdminProduct[]): PaginatedProducts {
+function normalizeProducts(
+  data: ProductsApiData | AdminProduct[]
+): PaginatedProducts {
   if (Array.isArray(data)) {
     return {
       products: data,
@@ -63,9 +66,10 @@ export async function fetchAdminProducts(params?: {
   limit?: number;
   category?: string;
 }) {
-  const response = await api.get<ApiResponse<ProductsApiData | AdminProduct[]>>("/v1/products", {
-    params,
-  });
+  const response = await api.get<ApiResponse<ProductsApiData | AdminProduct[]>>(
+    "/v1/products",
+    { params }
+  );
   return normalizeProducts(response.data.data);
 }
 
@@ -74,6 +78,7 @@ export async function createAdminProduct(payload: ProductPayload) {
     "/v1/products",
     payload
   );
+  invalidateProductCache();
   return response.data.data;
 }
 
@@ -82,15 +87,21 @@ export async function updateAdminProduct(id: string, payload: ProductPayload) {
     `/v1/products/${id}`,
     payload
   );
+  invalidateProductCache();
   return response.data.data;
 }
 
 export async function deleteAdminProduct(id: string) {
   const response = await api.delete<ApiResponse<null>>(`/v1/products/${id}`);
+  invalidateProductCache();
   return response.data;
 }
 
-export async function fetchAdminOrders(params?: { page?: number; limit?: number; status?: string }) {
+export async function fetchAdminOrders(params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+}) {
   const response = await api.get<ApiResponse<PaginatedOrders>>(
     "/v1/admin/orders",
     { params }
@@ -140,8 +151,3 @@ export async function setAdminUserRole(id: string, role: Role) {
   );
   return response.data;
 }
-
-
-
-
-

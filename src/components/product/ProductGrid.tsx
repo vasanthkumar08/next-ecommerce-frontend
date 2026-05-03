@@ -12,7 +12,7 @@ interface Props {
 function ProductGrid({ products, loading = false, skeletonCount = 10 }: Props) {
   if (loading) {
     return (
-      <div className="grid w-full grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 sm:gap-6">
+      <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,150px),1fr))] gap-3 sm:gap-5 lg:grid-cols-4">
         {Array.from({ length: skeletonCount }).map((_, i) => (
           <ProductCardSkeleton key={i} />
         ))}
@@ -33,7 +33,7 @@ function ProductGrid({ products, loading = false, skeletonCount = 10 }: Props) {
   }
 
   return (
-    <div className="grid w-full grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 sm:gap-6">
+    <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,150px),1fr))] gap-3 sm:gap-5 lg:grid-cols-4">
       {products.map((product) => (
         <ProductCard key={product.id} product={product} />
       ))}

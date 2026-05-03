@@ -15,7 +15,7 @@ export default function CartPage() {
   );
 
   return (
-    <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 lg:grid-cols-[1fr_340px]">
+    <div className="mx-auto grid min-w-0 max-w-7xl gap-6 px-3 py-6 sm:px-4 sm:py-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-8">
       {/* LEFT — product list */}
       <div>
         <h1 className="mb-6 text-2xl font-bold text-[#111111]">
@@ -23,7 +23,7 @@ export default function CartPage() {
         </h1>
 
         {cartItems.length === 0 ? (
-          <div className="rounded-xl border border-[#e0e0e0] bg-white p-12 text-center shadow-sm">
+          <div className="rounded-xl border border-[#e0e0e0] bg-white p-6 text-center shadow-sm sm:p-12">
             <p className="mb-1 text-4xl">🛒</p>
             <p className="mb-4 text-[#666666]">Your cart is empty</p>
             <Link
@@ -34,13 +34,13 @@ export default function CartPage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             {cartItems.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center gap-4 rounded-xl border border-[#e0e0e0] bg-white p-4 shadow-sm"
+                className="grid min-w-0 grid-cols-[5rem_minmax(0,1fr)] gap-3 rounded-xl border border-[#e0e0e0] bg-white p-3 shadow-sm sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4 sm:p-4"
               >
-                <div className="relative h-24 w-24 shrink-0">
+                <div className="relative h-20 w-20 shrink-0 sm:h-24 sm:w-24">
                   <Image
                     src={item.image || "/placeholder.png"}
                     alt={item.title}
@@ -49,7 +49,7 @@ export default function CartPage() {
                   />
                 </div>
 
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0">
                   <h2 className="line-clamp-2 font-semibold text-[#111111]">
                     {item.title}
                   </h2>
@@ -57,7 +57,7 @@ export default function CartPage() {
                     ${item.price.toFixed(2)}
                   </p>
 
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => dispatch(decreaseQuantity(item.id))}
                       className="h-7 w-7 rounded border border-[#e0e0e0] bg-[#f5f5f5] text-sm font-bold transition hover:bg-[#e0e0e0]"
@@ -76,14 +76,14 @@ export default function CartPage() {
                     <button
                       // ✅ FIX: was String(item.id) — now correctly number
                       onClick={() => dispatch(removeFromCart(item.id))}
-                      className="ml-3 text-sm text-red-500 transition hover:text-red-700"
+                      className="text-sm font-semibold text-red-500 transition hover:text-red-700 sm:ml-3"
                     >
                       Remove
                     </button>
                   </div>
                 </div>
 
-                <p className="shrink-0 font-bold text-[#111111]">
+                <p className="col-span-2 justify-self-end font-bold text-[#111111] sm:col-span-1">
                   ${(item.price * item.quantity).toFixed(2)}
                 </p>
               </div>
@@ -93,7 +93,7 @@ export default function CartPage() {
       </div>
 
       {/* RIGHT — order summary */}
-      <aside className="h-fit rounded-xl border border-[#e0e0e0] bg-white p-6 shadow-sm lg:sticky lg:top-24">
+      <aside className="h-fit min-w-0 rounded-xl border border-[#e0e0e0] bg-white p-4 shadow-sm sm:p-6 lg:sticky lg:top-24">
         <h2 className="mb-4 text-lg font-bold text-[#111111]">
           Order Summary
         </h2>

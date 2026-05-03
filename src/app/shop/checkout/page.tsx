@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
@@ -19,6 +19,19 @@ import type {
   RazorpayFailureResponse,
   RazorpaySuccessResponse,
 } from "@/types/razorpay";
+import api from "@/lib/axios";
+import {
+  Address,
+  AddressForm,
+  addressTypes,
+  buildAddressLine,
+  countries,
+  digitsAndPlusOnly,
+  formatAddress,
+  isValidPhone,
+  isValidPostalCode,
+  normalizePhone,
+} from "@/lib/address";
 
 type CheckoutStep = 1 | 2 | 3 | 4 | 5 | 6;
 type UpMethod = "gpay" | "phonepe" | "paytm";
@@ -32,10 +45,17 @@ type CardDetails = {
 type CheckoutForm = {
   fullName: string;
   phone: string;
+  alternatePhone: string;
+  houseNumber: string;
+  apartment: string;
   address: string;
+  street: string;
+  landmark: string;
   city: string;
+  state: string;
   postalCode: string;
   country: string;
+  addressType: AddressForm["addressType"];
 };
 
 const paymentOptions: Array<{
@@ -103,6 +123,8 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<CheckoutStep>(1);
   const [shippingAddress, setShippingAddress] =
     useState<ShippingAddress | null>(null);
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(
     null
   );
@@ -118,8 +140,14 @@ export default function CheckoutPage() {
   const {
     register,
     handleSubmit,
+    control,
+    setValue,
     formState: { errors },
   } = useForm<CheckoutForm>();
+
+  const selectedCountryName = useWatch({ control, name: "country" }) || "India";
+  const selectedCountry =
+    countries.find((country) => country.name === selectedCountryName) ?? countries[0];
 
   const subtotal = useMemo(
     () => items.reduce((acc, item) => acc + item.price * item.quantity, 0),
@@ -133,6 +161,39 @@ export default function CheckoutPage() {
     () => ["Cart", "Address", "Method", "Details", "Confirm", "Success"],
     []
   );
+
+  useEffect(() => {
+    if (!authHydrated || !isAuthenticated) return;
+
+    api
+      .get<{ data: Address[] }>("/v1/addresses")
+      .then((response) => {
+        setSavedAddresses(response.data.data);
+        const defaultAddress = response.data.data.find((address) => address.isDefault);
+        if (defaultAddress) setSelectedAddressId(defaultAddress._id);
+      })
+      .catch(() => setSavedAddresses([]));
+  }, [authHydrated, isAuthenticated]);
+
+  useEffect(() => {
+    if (!selectedAddressId) return;
+    const address = savedAddresses.find((item) => item._id === selectedAddressId);
+    if (!address) return;
+
+    setValue("fullName", address.name);
+    setValue("phone", address.phone);
+    setValue("alternatePhone", address.alternatePhone ?? "");
+    setValue("houseNumber", address.houseNumber ?? "");
+    setValue("apartment", address.apartment ?? "");
+    setValue("address", address.addressLine);
+    setValue("street", address.street ?? "");
+    setValue("landmark", address.landmark ?? "");
+    setValue("city", address.city ?? "");
+    setValue("state", address.state ?? "");
+    setValue("postalCode", address.pincode ?? "");
+    setValue("country", address.country);
+    setValue("addressType", address.addressType ?? "Home");
+  }, [savedAddresses, selectedAddressId, setValue]);
 
   const validatePaymentDetails = useCallback(() => {
     if (paymentMethod === "cod") return true;
@@ -148,17 +209,58 @@ export default function CheckoutPage() {
   }, [cardDetails, paymentMethod, upiMethod]);
 
   const onAddressSubmit = useCallback((data: CheckoutForm) => {
-    if (!/^[6-9]\d{9}$/.test(data.phone.trim())) {
-      setError("Enter a valid 10-digit phone number.");
+    const addressForm: AddressForm = {
+      name: data.fullName,
+      phone: data.phone,
+      alternatePhone: data.alternatePhone ?? "",
+      houseNumber: data.houseNumber,
+      apartment: data.apartment ?? "",
+      street: data.street || data.address,
+      landmark: data.landmark ?? "",
+      city: data.city,
+      state: data.state,
+      pincode: data.postalCode,
+      country: data.country,
+      addressType: data.addressType ?? "Home",
+    };
+    const addressLine = buildAddressLine(addressForm) || data.address.trim();
+
+    if (!isValidPhone(data.phone)) {
+      setError("Enter a valid phone number with an optional country code.");
+      return;
+    }
+
+    if (data.alternatePhone && !isValidPhone(data.alternatePhone)) {
+      setError("Alternate phone number must include only digits and an optional country code.");
+      return;
+    }
+
+    if (
+      !addressLine ||
+      !data.city.trim() ||
+      !data.state.trim() ||
+      !isValidPostalCode(data.postalCode)
+    ) {
+      setError("Complete the address, city, state, and postal or zip code.");
       return;
     }
 
     setShippingAddress({
-      address: `${data.fullName}, ${data.address}`,
-      phone: data.phone.trim(),
+      name: data.fullName.trim(),
+      address: `${data.fullName.trim()}, ${addressLine}`,
+      phone: normalizePhone(data.phone),
+      alternatePhone: data.alternatePhone
+        ? normalizePhone(data.alternatePhone)
+        : undefined,
+      houseNumber: data.houseNumber,
+      apartment: data.apartment,
+      street: data.street || data.address,
+      landmark: data.landmark,
       city: data.city,
+      state: data.state,
       pincode: data.postalCode,
       country: data.country,
+      addressType: data.addressType ?? "Home",
     });
     setError(null);
     setStep(3);
@@ -411,13 +513,35 @@ export default function CheckoutPage() {
           {step === 2 && (
             <form
               onSubmit={handleSubmit(onAddressSubmit)}
-              className="mt-7 grid gap-4 md:grid-cols-2"
+              className="mt-7 grid min-w-0 gap-4 md:grid-cols-2"
             >
-              <input
-                className="input-base md:col-span-2"
-                placeholder="Full name"
-                {...register("fullName", { required: "Name is required" })}
-              />
+              {savedAddresses.length > 0 && (
+                <div className="grid gap-3 md:col-span-2">
+                  <p className="text-sm font-bold text-slate-700">Saved addresses</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {savedAddresses.map((address) => (
+                      <button
+                        type="button"
+                        key={address._id}
+                        onClick={() => setSelectedAddressId(address._id)}
+                        className={`min-w-0 rounded-2xl border p-4 text-left text-sm transition ${
+                          selectedAddressId === address._id
+                            ? "border-[#ff6700] bg-orange-50"
+                            : "border-slate-200 bg-white"
+                        }`}
+                      >
+                        <span className="block truncate font-black text-slate-950">
+                          {address.name} · {address.addressType ?? "Home"}
+                        </span>
+                        <span className="mt-1 block break-words text-xs leading-5 text-slate-500">
+                          {formatAddress(address)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <input className="input-base md:col-span-2" placeholder="Full name" {...register("fullName", { required: "Name is required" })} />
               {errors.fullName && (
                 <p className="text-xs text-red-500 md:col-span-2">
                   {errors.fullName.message}
@@ -426,13 +550,15 @@ export default function CheckoutPage() {
               <input
                 className="input-base md:col-span-2"
                 inputMode="tel"
-                placeholder="Phone number"
+                placeholder={`${selectedCountry.code} phone number`}
+                onInput={(event) => {
+                  event.currentTarget.value = digitsAndPlusOnly(event.currentTarget.value);
+                }}
                 {...register("phone", {
                   required: "Phone number is required",
-                  pattern: {
-                    value: /^[6-9]\d{9}$/,
-                    message: "Enter a valid 10-digit phone number",
-                  },
+                  setValueAs: digitsAndPlusOnly,
+                  validate: (value) =>
+                    isValidPhone(value) || "Enter a valid phone number",
                 })}
               />
               {errors.phone && (
@@ -441,8 +567,38 @@ export default function CheckoutPage() {
                 </p>
               )}
               <input
+                className="input-base"
+                inputMode="tel"
+                placeholder="Alternate phone number"
+                onInput={(event) => {
+                  event.currentTarget.value = digitsAndPlusOnly(event.currentTarget.value);
+                }}
+                {...register("alternatePhone", {
+                  setValueAs: digitsAndPlusOnly,
+                  validate: (value) =>
+                    !value || isValidPhone(value) || "Enter a valid alternate phone number",
+                })}
+              />
+              <select className="input-base" defaultValue="Home" {...register("addressType")}>
+                {addressTypes.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+              <input className="input-base" placeholder="House / flat number" {...register("houseNumber", { required: "House / flat number is required" })} />
+              <input className="input-base" placeholder="Apartment / building" {...register("apartment")} />
+              <input
                 className="input-base md:col-span-2"
-                placeholder="House, street, area"
+                placeholder="Street"
+                {...register("street", { required: "Street is required" })}
+              />
+              <input
+                className="input-base md:col-span-2"
+                placeholder="Landmark"
+                {...register("landmark")}
+              />
+              <input
+                className="input-base md:col-span-2"
+                placeholder="Address summary"
                 {...register("address", { required: "Address is required" })}
               />
               <input
@@ -452,17 +608,32 @@ export default function CheckoutPage() {
               />
               <input
                 className="input-base"
-                placeholder="Postal code"
+                placeholder="State / province"
+                {...register("state", { required: "State / province is required" })}
+              />
+              <input
+                className="input-base"
+                placeholder={selectedCountry.postalLabel}
                 {...register("postalCode", {
                   required: "Postal code is required",
+                  validate: (value) =>
+                    isValidPostalCode(value) || "Enter a valid postal or zip code",
                 })}
               />
               <input
-                className="input-base md:col-span-2"
-                placeholder="Country"
+                list="checkout-country-options"
+                className="input-base"
+                placeholder="Search country"
                 defaultValue="India"
                 {...register("country", { required: "Country is required" })}
               />
+              <datalist id="checkout-country-options">
+                {countries.map((country) => (
+                  <option key={country.name} value={country.name}>
+                    {country.code}
+                  </option>
+                ))}
+              </datalist>
               <button className="rounded-2xl bg-[#ff6700] px-6 py-3 font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#f05f00] active:scale-95 md:col-span-2">
                 Continue to Payment
               </button>

@@ -160,6 +160,55 @@ body {
   overflow-x: hidden;
 }
 
+* {
+  box-sizing: border-box;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  min-width: 0;
+}
+
+button,
+a {
+  overflow-wrap: anywhere;
+}
+
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+span,
+li,
+td,
+th {
+  overflow-wrap: anywhere;
+}
+
+table {
+  max-width: 100%;
+}
+
+@media (max-width: 420px) {
+  .input-base {
+    min-height: 2.75rem;
+    font-size: 1rem;
+  }
+}
+
 /* ── Glass utilities ─────────────────────────── */
 .glass-card {
   border-radius: 1rem;
@@ -203,6 +252,7 @@ body {
 
 .input-base {
   width: 100%;
+  min-width: 0;
   border-radius: 0.5rem;
   border: 1px solid #e0e0e0;
   background: #ffffff;

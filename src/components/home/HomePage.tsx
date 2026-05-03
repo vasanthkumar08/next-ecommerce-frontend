@@ -61,7 +61,7 @@ const PREMIUM_CATEGORY_GROUPS = [
       {
         name: "Walnuts",
         image:
-          "https://images.unsplash.com/photo-1615485291262-015b0e8f6f2f?auto=format&fit=crop&w=900&q=85",
+          "https://images.unsplash.com/photo-1508061253366-f7da158b6d46?auto=format&fit=crop&w=900&q=85",
       },
     ],
   },
@@ -87,7 +87,7 @@ const PREMIUM_CATEGORY_GROUPS = [
       {
         name: "Grains",
         image:
-          "https://images.unsplash.com/photo-1604908812863-6d1f6f6f49f8?auto=format&fit=crop&w=900&q=85",
+          "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=900&q=85",
       },
     ],
   },

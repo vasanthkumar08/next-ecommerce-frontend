@@ -61,8 +61,8 @@ const emptyValues: ProductFormValues = {
 const inputClass =
   "rounded-lg border-slate-200 bg-white text-black placeholder:text-slate-400 focus-visible:ring-[#2563EB]";
 const tableHeadClass =
-  "bg-[#F8FAFC] px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500";
-const tableCellClass = "px-4 py-4 align-middle text-sm text-slate-700";
+  "whitespace-nowrap bg-[#F8FAFC] px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500";
+const tableCellClass = "whitespace-nowrap px-4 py-4 align-middle text-sm text-slate-700";
 
 function formatCurrency(value: number) {
   return `₹${value.toLocaleString("en-IN")}`;
@@ -258,7 +258,15 @@ export function ProductManager({ canManage = true }: { canManage?: boolean }) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] border-collapse text-sm">
+            <table className="w-full min-w-[1120px] table-fixed border-collapse text-sm">
+              <colgroup>
+                <col className="w-[46%]" />
+                <col className="w-[14%]" />
+                <col className="w-[11%]" />
+                <col className="w-[13%]" />
+                <col className="w-[7%]" />
+                <col className="w-[9%]" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-slate-200">
                   <th className={tableHeadClass}>Product</th>
@@ -293,7 +301,11 @@ export function ProductManager({ canManage = true }: { canManage?: boolean }) {
                           </div>
                         </div>
                       </td>
-                      <td className={tableCellClass}>{product.category}</td>
+                      <td className={tableCellClass}>
+                        <span className="block truncate capitalize" title={product.category}>
+                          {product.category}
+                        </span>
+                      </td>
                       <td className={`${tableCellClass} font-semibold text-slate-950`}>{formatCurrency(product.price)}</td>
                       <td className={tableCellClass}>
                         <Badge variant={product.stock > 0 ? "success" : "danger"}>
@@ -302,7 +314,7 @@ export function ProductManager({ canManage = true }: { canManage?: boolean }) {
                       </td>
                       <td className={tableCellClass}>{product.ratings.toFixed(1)}</td>
                       <td className={`${tableCellClass} text-right`}>
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-2 whitespace-nowrap">
                           <Button variant="outline" size="sm" disabled={!canManage} onClick={() => openEdit(product)}>
                             <Pencil className="h-4 w-4" />
                             Edit

@@ -88,7 +88,7 @@ async function verifySessionWithBackend(token: string) {
   }
 
   try {
-    const response = await fetch(`${apiUrl}/v1/auth/me`, {
+    const response = await fetch(`${apiUrl}/v1/users/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

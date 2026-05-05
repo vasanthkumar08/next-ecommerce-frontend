@@ -12,7 +12,10 @@ export default async function AddProductPage() {
           Use the Add product action to create a database-backed product with image preview.
         </p>
       </div>
-      <ProductManager canManage={session?.role === "admin"} />
+      <ProductManager
+        canManage={session?.role === "admin"}
+        initialMode="create"
+      />
     </div>
   );
 }

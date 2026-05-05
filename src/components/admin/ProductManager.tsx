@@ -68,13 +68,21 @@ function formatCurrency(value: number) {
   return `₹${value.toLocaleString("en-IN")}`;
 }
 
-export function ProductManager({ canManage = true }: { canManage?: boolean }) {
+interface ProductManagerProps {
+  canManage?: boolean;
+  initialMode?: "list" | "create";
+}
+
+export function ProductManager({
+  canManage = true,
+  initialMode = "list",
+}: ProductManagerProps) {
   const dispatch = useAppDispatch();
   const { data, loading, error } = useAppSelector((state) => state.adminProducts);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [page, setPage] = useState(1);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialMode === "create" && canManage);
   const [editing, setEditing] = useState<AdminProduct | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -260,12 +268,12 @@ export function ProductManager({ canManage = true }: { canManage?: boolean }) {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1120px] table-fixed border-collapse text-sm">
               <colgroup>
-                <col className="w-[46%]" />
+                <col className="w-[45%]" />
                 <col className="w-[14%]" />
                 <col className="w-[11%]" />
                 <col className="w-[13%]" />
                 <col className="w-[7%]" />
-                <col className="w-[9%]" />
+                <col className="w-[10%]" />
               </colgroup>
               <thead>
                 <tr className="border-b border-slate-200">
@@ -274,7 +282,7 @@ export function ProductManager({ canManage = true }: { canManage?: boolean }) {
                   <th className={tableHeadClass}>Price</th>
                   <th className={tableHeadClass}>Stock</th>
                   <th className={tableHeadClass}>Rating</th>
-                  <th className={`${tableHeadClass} text-right`}>Actions</th>
+                  <th className={`${tableHeadClass} text-center`}>Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -313,20 +321,31 @@ export function ProductManager({ canManage = true }: { canManage?: boolean }) {
                         </Badge>
                       </td>
                       <td className={tableCellClass}>{product.ratings.toFixed(1)}</td>
-                      <td className={`${tableCellClass} text-right`}>
-                        <div className="flex justify-end gap-2 whitespace-nowrap">
-                          <Button variant="outline" size="sm" disabled={!canManage} onClick={() => openEdit(product)}>
+                      <td className={`${tableCellClass} px-3 text-center`}>
+                        <div className="flex justify-center gap-2 whitespace-nowrap">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            disabled={!canManage}
+                            onClick={() => openEdit(product)}
+                            title={`Edit ${product.name}`}
+                            aria-label={`Edit ${product.name}`}
+                            className="h-9 w-9 rounded-full text-slate-700 hover:text-[#2563EB]"
+                          >
                             <Pencil className="h-4 w-4" />
-                            Edit
+                            <span className="sr-only">Edit</span>
                           </Button>
                           <Button
                             variant="destructive"
-                            size="sm"
+                            size="icon"
                             disabled={!canManage || isPending}
                             onClick={() => deleteProduct(product.id)}
+                            title={`Delete ${product.name}`}
+                            aria-label={`Delete ${product.name}`}
+                            className="h-9 w-9 rounded-full"
                           >
                             <Trash2 className="h-4 w-4" />
-                            Delete
+                            <span className="sr-only">Delete</span>
                           </Button>
                         </div>
                       </td>

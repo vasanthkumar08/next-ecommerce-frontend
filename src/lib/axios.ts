@@ -1,7 +1,7 @@
 import axios from "axios";
 import { getApiBaseUrl } from "@/lib/apiUrl";
 import {
-  clearAuthSession,
+  clearLocalAuthSession,
   getStoredAccessToken,
   persistAuthSession,
 } from "@/features/auth/authStorage";
@@ -85,8 +85,12 @@ api.interceptors.response.use(
           ? refreshError.response?.status
           : undefined;
 
-        if (refreshStatus === 401 || refreshStatus === 403) {
-          clearAuthSession();
+        if (
+          refreshStatus === 401 ||
+          refreshStatus === 403 ||
+          refreshStatus === 429
+        ) {
+          clearLocalAuthSession();
         }
       }
     }

@@ -7,7 +7,7 @@ import type { AuthResponse } from "@/features/auth/auth.api";
 import { getApiBaseUrl } from "@/lib/apiUrl";
 import {
   AUTH_SESSION_EVENT,
-  clearAuthSession,
+  clearLocalAuthSession,
   getStoredAccessToken,
   getStoredUser,
   persistAuthSession,
@@ -66,8 +66,8 @@ export default function AuthHydrator() {
           ? error.response?.status
           : undefined;
 
-        if ((status === 401 || status === 403) && !storedUser && !storedAccessToken) {
-          clearAuthSession();
+        if (status === 401 || status === 403 || status === 429) {
+          clearLocalAuthSession();
           dispatch(hydrateAuth({ user: null, accessToken: null }));
         }
       });

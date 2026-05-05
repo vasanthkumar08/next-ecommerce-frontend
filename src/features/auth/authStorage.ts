@@ -31,6 +31,14 @@ export const clearAccessTokenCookie = () => {
   document.cookie = `${ACCESS_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax${getCookieSecurity()}`;
 };
 
+export const clearLocalAuthSession = () => {
+  if (!canUseStorage()) return;
+  window.localStorage.removeItem(AUTH_TOKEN_KEY);
+  window.localStorage.removeItem(AUTH_USER_KEY);
+  clearAccessTokenCookie();
+  notifyAuthSessionChanged();
+};
+
 export const getStoredAccessToken = (): string | null => {
   if (!canUseStorage()) return null;
   return window.localStorage.getItem(AUTH_TOKEN_KEY);
@@ -60,10 +68,7 @@ export const persistAuthSession = (accessToken: string, user: User) => {
 
 export const clearAuthSession = () => {
   if (!canUseStorage()) return;
-  window.localStorage.removeItem(AUTH_TOKEN_KEY);
-  window.localStorage.removeItem(AUTH_USER_KEY);
-  clearAccessTokenCookie();
-  notifyAuthSessionChanged();
+  clearLocalAuthSession();
   const apiUrl = getApiBaseUrl();
 
   if (apiUrl) {

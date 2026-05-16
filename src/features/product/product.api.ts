@@ -1,111 +1,39 @@
-import { Product } from "@/types/product";
 import api from "@/lib/axios";
+import type { Product } from "@/types/product";
+import {
+  normalizeProductsResponse,
+  toProduct,
+  type BackendProduct,
+  type ProductListResult,
+  type ProductsResponse,
+} from "./productMapper";
 
-interface ProductImage {
-  url: string;
-  public_id?: string;
-}
-
-interface BackendProduct {
-  id?: string;
-  _id?: string;
-  name?: string;
-  title?: string;
-  description: string;
-  price: number;
-  category: string;
-  countInStock?: number;
-  stock?: number;
-  image?: string;
-  images?: ProductImage[];
-  ratings?: number;
-  rating?: { rate?: number; count?: number };
-  numReviews?: number;
-}
-
-interface ProductsResponse {
-  success: boolean;
-  data:
-    | {
-        products?: BackendProduct[];
-        total?: number;
-        page?: number;
-        pages?: number;
-      }
-    | BackendProduct[];
-  message?: string;
-}
-
-const getProductId = (product: BackendProduct) => product.id ?? product._id;
-
-const categoryImages: Record<string, string> = {
-  electronics:
-    "https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=1200&q=80",
-  jewelery:
-    "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=1200&q=80",
-  "men's clothing":
-    "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80",
-  "women's clothing":
-    "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=80",
-};
-
-const getProductImage = (product: BackendProduct) => {
-  const image = product.images?.[0]?.url ?? product.image;
-  if (image?.trim()) {
-    return image;
-  }
-
-  return (
-    categoryImages[product.category?.toLowerCase()] ??
-    "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80"
-  );
-};
-
-const toProduct = (product: BackendProduct): Product | null => {
-  const id = getProductId(product);
-
-  if (!id) {
-    return null;
-  }
-
-  return {
-    id: String(id),
-    title: product.name ?? product.title ?? "Untitled product",
-    description: product.description,
-    price: product.price,
-    image: getProductImage(product),
-    category: product.category,
-    countInStock: product.countInStock ?? product.stock,
-    rating: {
-      rate: product.ratings ?? product.rating?.rate ?? 0,
-      count: product.numReviews ?? product.rating?.count ?? 0,
-    },
-  };
-};
-
-const getProductList = (response: ProductsResponse): BackendProduct[] => {
-  const data = response.data;
-
-  if (Array.isArray(data)) {
-    return data;
-  }
-
-  return data.products ?? [];
-};
-
-const productListCache = {
-  data: null as Product[] | null,
-  expiresAt: 0,
-  pending: null as Promise<Product[]> | null,
-};
-
+const productPageCache = new Map<
+  string,
+  { data?: ProductListResult; expiresAt: number; pending?: Promise<ProductListResult> }
+>();
 const productByIdCache = new Map<string, { data: Product; expiresAt: number }>();
 const cacheTtlMs = 60_000;
 
+export interface ProductQueryParams {
+  page?: number;
+  limit?: number;
+  keyword?: string;
+  category?: string;
+  sort?: string;
+}
+
+const queryCacheKey = (params: ProductQueryParams) =>
+  JSON.stringify({
+    page: params.page ?? 1,
+    limit: params.limit ?? 24,
+    keyword: params.keyword ?? "",
+    category: params.category ?? "",
+    sort: params.sort ?? "",
+  });
+
 export const invalidateProductCache = () => {
-  productListCache.data = null;
-  productListCache.expiresAt = 0;
-  productListCache.pending = null;
+  productPageCache.clear();
   productByIdCache.clear();
 };
 
@@ -115,38 +43,54 @@ export const invalidateProductCache = () => {
  * 📦 Get All Products
  */
 export const getProducts = async (): Promise<Product[]> => {
+  const result = await getProductPage({ limit: 50 });
+  return result.products;
+};
+
+export const getProductPage = async (
+  params: ProductQueryParams = {}
+): Promise<ProductListResult> => {
   const now = Date.now();
+  const cacheKey = queryCacheKey(params);
+  const cached = productPageCache.get(cacheKey);
 
-  if (productListCache.data && productListCache.expiresAt > now) {
-    return productListCache.data;
+  if (cached?.data && cached.expiresAt > now) {
+    return cached.data;
   }
 
-  if (productListCache.pending) {
-    return productListCache.pending;
+  if (cached?.pending) {
+    return cached.pending;
   }
 
-  productListCache.pending = (async () => {
-  try {
-    const res = await api.get<ProductsResponse>("/v1/products", {
-      params: { limit: 50 },
-    });
-    const products = getProductList(res.data)
-      .map(toProduct)
-      .filter((product): product is Product => Boolean(product));
+  const pending = (async () => {
+    try {
+      const res = await api.get<ProductsResponse>("/v1/products", {
+        params: {
+          page: params.page ?? 1,
+          limit: params.limit ?? 24,
+          ...(params.keyword ? { keyword: params.keyword } : {}),
+          ...(params.category && params.category !== "all"
+            ? { category: params.category }
+            : {}),
+          ...(params.sort ? { sort: params.sort } : {}),
+        },
+      });
+      const result = normalizeProductsResponse(res.data);
 
-    productListCache.data = products;
-    productListCache.expiresAt = Date.now() + cacheTtlMs;
-    return products;
-  } catch (error) {
-    throw error instanceof Error
-      ? error
-      : new Error("Failed to fetch products from database");
-  } finally {
-    productListCache.pending = null;
-  }
+      productPageCache.set(cacheKey, {
+        data: result,
+        expiresAt: Date.now() + cacheTtlMs,
+      });
+      return result;
+    } catch (error) {
+      throw error instanceof Error
+        ? error
+        : new Error("Failed to fetch products from database");
+    }
   })();
 
-  return productListCache.pending;
+  productPageCache.set(cacheKey, { pending, expiresAt: now + cacheTtlMs });
+  return pending;
 };
 
 /**

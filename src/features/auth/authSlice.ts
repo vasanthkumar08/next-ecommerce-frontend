@@ -10,6 +10,8 @@ import {
   clearAuthSession,
   persistAuthSession,
 } from "./authStorage";
+import { markPerf, measurePerf } from "@/lib/perf";
+import { pauseCartSync, resumeCartSync } from "@/features/cart/cartSync";
 
 // ✅ Define ONCE — all thunks in this file inherit rejectValue: string
 const createAuthThunk = createAsyncThunk.withTypes<{
@@ -20,6 +22,7 @@ interface AuthState {
   user: User | null;
   accessToken: string | null;
   loading: boolean;
+  logoutLoading: boolean;
   hydrated: boolean;
   error: string | null;
   isAuthenticated: boolean;
@@ -29,6 +32,7 @@ const initialState: AuthState = {
   user: null,
   accessToken: null,
   loading: false,
+  logoutLoading: false,
   hydrated: false,
   error: null,
   isAuthenticated: false,
@@ -42,6 +46,8 @@ export const login = createAuthThunk(
   ) => {
     try {
       const result: AuthResponse = await loginUser(data);
+      persistAuthSession(result.accessToken, result.user);
+      resumeCartSync();
       return result;
     } catch (err: unknown) {
       return rejectWithValue(
@@ -73,6 +79,74 @@ export const register = createAuthThunk(
   }
 );
 
+export const logout = createAuthThunk(
+  "auth/logout",
+  async (source: string | undefined, { getState, rejectWithValue }) => {
+    try {
+      const state = getState() as {
+        auth?: Pick<
+          AuthState,
+          "hydrated" | "isAuthenticated" | "logoutLoading" | "user"
+        >;
+      };
+
+      if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
+        console.info("auth_logout", {
+          event: "thunk_started",
+          source: source ?? "redux",
+          hydrated: state.auth?.hydrated ?? false,
+          isAuthenticated: state.auth?.isAuthenticated ?? false,
+          logoutLoading: state.auth?.logoutLoading ?? false,
+          userId: state.auth?.user?.id ?? null,
+        });
+      }
+
+      pauseCartSync();
+      markPerf("logout:cart-sync-paused", { source: source ?? "redux" });
+      measurePerf(
+        "logout:click-to-cart-sync-pause",
+        "logout:click",
+        "logout:cart-sync-paused",
+        { source: source ?? "redux" }
+      );
+
+      if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
+        console.info("auth_logout", {
+          event: "cart_sync_paused",
+          source: source ?? "redux",
+        });
+      }
+
+      await clearAuthSession(source ?? "redux");
+    } catch (err: unknown) {
+      return rejectWithValue(
+        err instanceof Error ? err.message : "Logout failed"
+      );
+    }
+  },
+  {
+    condition: (_, { getState }) => {
+      const state = getState() as {
+        auth?: Pick<AuthState, "logoutLoading" | "isAuthenticated" | "hydrated">;
+      };
+
+      if (state.auth?.logoutLoading === true) return false;
+      if (state.auth?.hydrated === true && state.auth.isAuthenticated === false) {
+        return false;
+      }
+
+      return true;
+    },
+  }
+);
+
+const clearAuthState = (state: AuthState) => {
+  state.user = null;
+  state.accessToken = null;
+  state.isAuthenticated = false;
+  state.hydrated = true;
+};
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -93,13 +167,6 @@ const authSlice = createSlice({
       );
       state.hydrated = true;
     },
-    logout: (state) => {
-      state.user = null;
-      state.accessToken = null;
-      state.isAuthenticated = false;
-      state.hydrated = true;
-      clearAuthSession();
-    },
   },
   extraReducers: (builder) => {
     builder
@@ -113,7 +180,6 @@ const authSlice = createSlice({
         state.accessToken = action.payload.accessToken;
         state.isAuthenticated = true;
         state.hydrated = true;
-        persistAuthSession(action.payload.accessToken, action.payload.user);
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -129,9 +195,23 @@ const authSlice = createSlice({
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? "Registration failed";
+      })
+      .addCase(logout.pending, (state) => {
+        state.logoutLoading = true;
+        state.error = null;
+        clearAuthState(state);
+      })
+      .addCase(logout.fulfilled, (state) => {
+        state.logoutLoading = false;
+        clearAuthState(state);
+      })
+      .addCase(logout.rejected, (state, action) => {
+        state.logoutLoading = false;
+        clearAuthState(state);
+        state.error = action.payload ?? null;
       });
   },
 });
 
-export const { hydrateAuth, logout } = authSlice.actions;
+export const { hydrateAuth } = authSlice.actions;
 export default authSlice.reducer;

@@ -3,7 +3,17 @@ import { getApiBaseUrl } from "@/lib/apiUrl";
 import { NextResponse } from "next/server";
 
 const publicRoutes = ["/", "/login", "/register", "/unauthorized"];
+const protectedRoutePrefixes = [
+  "/profile",
+  "/settings",
+  "/dashboard",
+  "/shop/cart",
+  "/shop/checkout",
+  "/shop/orders",
+  "/shop/wishlist",
+] as const;
 const accessTokenMaxAge = 7 * 24 * 60 * 60;
+const verifiedAccessHeader = "x-vasanth-verified-access-token";
 
 interface RefreshResponse {
   success: boolean;
@@ -30,7 +40,42 @@ function getCookieValue(cookieHeader: string, name: string) {
     ?.split("=")[1];
 }
 
-async function refreshSession(cookieHeader: string, nextUrl: URL) {
+function isProtectedUserRoute(pathname: string): boolean {
+  return protectedRoutePrefixes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+}
+
+function redirectToLogin(nextUrl: URL, reason: string) {
+  if (process.env.NODE_ENV !== "production") {
+    console.info("frontend_auth_proxy", {
+      event: "redirect_to_login",
+      path: nextUrl.pathname,
+      reason,
+    });
+  }
+
+  const loginUrl = new URL("/login", nextUrl);
+  loginUrl.searchParams.set("next", `${nextUrl.pathname}${nextUrl.search}`);
+  return NextResponse.redirect(loginUrl);
+}
+
+function createVerifiedNextResponse(request: Request, accessToken: string) {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(verifiedAccessHeader, accessToken);
+
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+}
+
+async function refreshSession(
+  request: Request,
+  cookieHeader: string,
+  nextUrl: URL
+) {
   const apiUrl = getApiBaseUrl();
   const refreshToken = getCookieValue(cookieHeader, "refreshToken");
 
@@ -61,7 +106,7 @@ async function refreshSession(cookieHeader: string, nextUrl: URL) {
       return null;
     }
 
-    const response = NextResponse.next();
+    const response = createVerifiedNextResponse(request, body.accessToken);
     response.cookies.set(adminTokenCookie, body.accessToken, {
       path: "/",
       maxAge: accessTokenMaxAge,
@@ -88,7 +133,7 @@ async function verifySessionWithBackend(token: string) {
   }
 
   try {
-    const response = await fetch(`${apiUrl}/v1/users/me`, {
+    const response = await fetch(`${apiUrl}/v1/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -130,10 +175,22 @@ export async function proxy(request: Request) {
   const refreshed =
     verifiedSession || backendSession
       ? null
-      : await refreshSession(cookieHeader, nextUrl);
+      : await refreshSession(request, cookieHeader, nextUrl);
   const session = verifiedSession ?? backendSession ?? refreshed?.session ?? null;
   const refreshedResponse = refreshed?.response ?? null;
   const isPublicRoute = publicRoutes.includes(pathname);
+  const isProtectedRoute =
+    pathname.startsWith("/admin") || isProtectedUserRoute(pathname);
+
+  if (process.env.NODE_ENV !== "production" && isProtectedRoute) {
+    console.info("frontend_auth_proxy", {
+      event: "route_check",
+      path: pathname,
+      hasAccessCookie: Boolean(token),
+      hasRefreshCookie: Boolean(getCookieValue(cookieHeader, "refreshToken")),
+      hasSession: Boolean(session),
+    });
+  }
 
   if (pathname === "/admin/login") {
     return NextResponse.redirect(new URL("/login", nextUrl));
@@ -143,13 +200,17 @@ export async function proxy(request: Request) {
     return NextResponse.next();
   }
 
+  if (isProtectedUserRoute(pathname) && !session) {
+    return redirectToLogin(nextUrl, "missing_or_invalid_session");
+  }
+
   // Edge RBAC is the first gate: unauthenticated users go to /login,
   // authenticated users with the wrong role go to /unauthorized.
   // Server pages still repeat checks with auth() so direct rendering,
   // prefetches, and future API actions stay protected too.
   if (pathname.startsWith("/admin")) {
     if (!session) {
-      return NextResponse.redirect(new URL("/login", nextUrl));
+      return redirectToLogin(nextUrl, "missing_or_invalid_admin_session");
     }
 
     if (session.role !== "admin" && session.role !== "manager") {
@@ -157,11 +218,26 @@ export async function proxy(request: Request) {
     }
   }
 
-  return refreshedResponse ?? NextResponse.next();
+  if (refreshedResponse) {
+    return refreshedResponse;
+  }
+
+  if (session && token) {
+    return createVerifiedNextResponse(request, decodeURIComponent(token));
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
     "/admin/:path*",
+    "/dashboard/:path*",
+    "/profile/:path*",
+    "/settings/:path*",
+    "/shop/cart/:path*",
+    "/shop/checkout/:path*",
+    "/shop/orders/:path*",
+    "/shop/wishlist/:path*",
   ],
 };

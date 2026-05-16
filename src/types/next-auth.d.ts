@@ -7,6 +7,8 @@ declare module "next-auth" {
       id: string;
       role: Role;
     } & DefaultSession["user"];
+    provider?: "google" | "github";
+    providerAccountId?: string;
   }
 
   interface User {

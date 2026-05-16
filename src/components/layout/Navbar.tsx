@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -25,6 +26,7 @@ import {
 } from "lucide-react";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { logout } from "@/features/auth/authSlice";
+import { countRender, markPerf, measurePerf } from "@/lib/perf";
 
 const categories = [
   { label: "All Products", href: "/shop/products", icon: Package },
@@ -41,7 +43,9 @@ const categories = [
 ] as const;
 
 export default function Navbar() {
+  countRender("Navbar");
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const cartCount = useAppSelector((state) =>
     state.cart.items.reduce((a, i) => a + i.quantity, 0)
@@ -192,8 +196,18 @@ export default function Navbar() {
                   ))}
                   <button
                     onClick={() => {
-                      dispatch(logout());
+                      markPerf("logout:click", { source: "navbar" });
+                      void dispatch(logout("navbar"));
                       setProfileOpen(false);
+                      router.replace("/");
+                      markPerf("logout:redirect-fired", { source: "navbar" });
+                      measurePerf(
+                        "logout:click-to-redirect",
+                        "logout:click",
+                        "logout:redirect-fired",
+                        { source: "navbar" }
+                      );
+                      router.refresh();
                     }}
                     className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-bold text-red-600 transition hover:bg-red-50"
                   >

@@ -14,6 +14,7 @@ import {
 import { logout } from "@/features/auth/authSlice";
 import { getStoredAccessToken, getStoredUser } from "@/features/auth/authStorage";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { markPerf, measurePerf } from "@/lib/perf";
 
 type SessionInfo = {
   browser: string;
@@ -95,8 +96,17 @@ export default function SecuritySettingsPage() {
   };
 
   const revokeCurrentSession = () => {
-    dispatch(logout());
-    router.push("/login");
+    markPerf("logout:click", { source: "security-settings" });
+    void dispatch(logout("security-settings"));
+    router.replace("/");
+    markPerf("logout:redirect-fired", { source: "security-settings" });
+    measurePerf(
+      "logout:click-to-redirect",
+      "logout:click",
+      "logout:redirect-fired",
+      { source: "security-settings" }
+    );
+    router.refresh();
   };
 
   const requestPasswordReset = () => {

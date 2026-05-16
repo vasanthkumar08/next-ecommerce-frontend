@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { memo, useState } from "react";
-import { motion } from "framer-motion";
 import {
   BadgePercent,
   Heart,
@@ -72,12 +71,9 @@ function ProductCard({
 
   return (
     <>
-    <motion.article
+    <article
       data-product-scope
-      layout
-      whileHover={{ y: -6 }}
-      transition={{ type: "spring", stiffness: 260, damping: 24 }}
-      className="group relative flex h-full min-w-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 hover:border-orange-200 hover:shadow-md"
+      className="group relative flex h-full min-w-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1.5 hover:border-orange-200 hover:shadow-md"
     >
       <div className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-[#cc0c39] px-2.5 py-1 text-[11px] font-black text-white shadow-lg shadow-red-500/20">
         <BadgePercent className="h-3.5 w-3.5" />
@@ -103,14 +99,13 @@ function ProductCard({
         data-fly-image
         className="relative mx-3 mt-3 aspect-[4/3] overflow-hidden rounded-[1.35rem] bg-white"
       >
-        <Link href={href} className="block h-full">
+        <Link href={href} className="relative block h-full">
           <Image
             src={imageSrc}
             alt={name}
             fill
-            loading="eager"
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-            className="object-cover transition duration-500 group-hover:scale-110"
+            className="object-contain p-3 transition duration-500 group-hover:scale-105"
             onError={() => setImageFailed(true)}
           />
         </Link>
@@ -196,7 +191,7 @@ function ProductCard({
         </button>
       </div>
 
-    </motion.article>
+    </article>
 
     {quickViewOpen ? (
       <>
@@ -216,7 +211,7 @@ function ProductCard({
                 alt={name}
                 fill
                 sizes="(min-width: 768px) 480px, 100vw"
-                className="object-cover"
+                className="object-contain p-6"
               />
             </div>
             <div className="flex flex-col p-6 text-slate-800 sm:p-8">
@@ -294,7 +289,7 @@ function ProductCard({
                   alt={name}
                   fill
                   sizes="100vw"
-                  className="object-cover"
+                  className="object-contain p-4"
                 />
               </div>
               <div className="pt-5">

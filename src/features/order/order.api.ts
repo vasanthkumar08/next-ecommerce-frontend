@@ -23,6 +23,37 @@ export interface ShippingAddress {
 
 const objectIdPattern = /^[a-f\d]{24}$/i;
 
+const stableHash = (value: string) => {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash.toString(36);
+};
+
+const createCheckoutIdempotencyKey = (
+  items: CartItem[],
+  shippingAddress: ShippingAddress,
+  paymentMethod: PaymentMethod
+) => {
+  const cartFingerprint = items
+    .map((item) => `${item.id}:${item.quantity}`)
+    .sort()
+    .join("|");
+  const addressFingerprint = [
+    shippingAddress.address,
+    shippingAddress.city,
+    shippingAddress.pincode,
+    shippingAddress.country,
+  ]
+    .map((part) => part.trim().toLowerCase())
+    .join("|");
+
+  return `checkout:${paymentMethod}:${stableHash(
+    `${cartFingerprint}:${addressFingerprint}`
+  )}`;
+};
+
 interface CreateOrderResponse {
   success: boolean;
   message: string;
@@ -97,6 +128,12 @@ export const createOrder = async (
 
   let res;
 
+  const idempotencyKey = createCheckoutIdempotencyKey(
+    items,
+    shippingAddress,
+    paymentMethod
+  );
+
   try {
     res = await api.post<CreateOrderResponse>("/v1/orders", {
       items: items.map((item) => ({
@@ -104,8 +141,13 @@ export const createOrder = async (
         quantity: item.quantity,
       })),
       totalAmount: total,
+      idempotencyKey,
       shippingAddress,
       paymentMethod,
+    }, {
+      headers: {
+        "Idempotency-Key": idempotencyKey,
+      },
     });
   } catch (error) {
     if (axios.isAxiosError<{ message?: string }>(error)) {

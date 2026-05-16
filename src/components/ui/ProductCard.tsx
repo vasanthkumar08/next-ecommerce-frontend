@@ -13,6 +13,7 @@ import {
   removeFromWishlist,
 } from "@/features/wishlist/wishlistSlice";
 import { toast as sonnerToast } from "sonner";
+import { countRender } from "@/lib/perf";
 
 interface ProductCardProps {
   product: Product;
@@ -34,6 +35,7 @@ function getPricing(product: Product) {
 }
 
 function ProductCard({ product }: ProductCardProps) {
+  countRender("GridProductCard", { productId: product.id });
   const dispatch = useAppDispatch();
   const router = useRouter();
   const pricing = useMemo(() => getPricing(product), [product]);

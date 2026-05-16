@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import {
   Camera,
   Heart,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout } from "@/features/auth/authSlice";
+import { countRender, markPerf, measurePerf } from "@/lib/perf";
 
 const avatarUrl =
   "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=500&q=85";
@@ -55,8 +57,13 @@ const sidebarLinks = [
 ] as const;
 
 export default function ProfilePage() {
+  countRender("ProfilePage");
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const authUser = useAppSelector((state) => state.auth.user);
+  const authHydrated = useAppSelector((state) => state.auth.hydrated);
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const logoutLoading = useAppSelector((state) => state.auth.logoutLoading);
   const wishlistCount = useAppSelector((state) => state.wishlist.items.length);
   const orders = useAppSelector((state) => state.orders.items);
 
@@ -72,6 +79,38 @@ export default function ProfilePage() {
 
   const [name, setName] = useState(authUser?.name ?? fallbackUser.name);
   const [phone, setPhone] = useState(fallbackUser.phone);
+
+  useEffect(() => {
+    if (authUser?.name) {
+      setName(authUser.name);
+    }
+  }, [authUser?.name]);
+
+  useEffect(() => {
+    if (authHydrated && !isAuthenticated) {
+      if (process.env.NODE_ENV !== "production") {
+        console.info("client_auth_guard", {
+          event: "redirect_to_login",
+          path: "/profile",
+          reason: "hydrated_unauthenticated",
+        });
+      }
+
+      router.replace("/login?next=/profile");
+    }
+  }, [authHydrated, isAuthenticated, router]);
+
+  if (!authHydrated || logoutLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-white">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#ff6700] border-t-transparent" />
+      </main>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   const stats = [
     {
@@ -131,7 +170,20 @@ export default function ProfilePage() {
             </nav>
 
             <button
-              onClick={() => dispatch(logout())}
+              disabled={logoutLoading}
+              onClick={() => {
+                markPerf("logout:click", { source: "profile" });
+                void dispatch(logout("profile"));
+                router.replace("/");
+                markPerf("logout:redirect-fired", { source: "profile" });
+                measurePerf(
+                  "logout:click-to-redirect",
+                  "logout:click",
+                  "logout:redirect-fired",
+                  { source: "profile" }
+                );
+                router.refresh();
+              }}
               className="mt-4 w-full rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-black text-red-600 transition hover:bg-red-100 active:scale-95"
             >
               Sign out

@@ -1,5 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
+import GitHub from "next-auth/providers/github";
 import { z } from "zod";
 import type { AuthUser, Role } from "@/types/rbac";
 
@@ -36,6 +38,23 @@ const demoLoginEnabled =
   process.env.NODE_ENV !== "production" ||
   process.env.NEXTAUTH_DEMO_LOGIN_ENABLED === "true";
 
+const oauthProviders = [
+  process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
+    ? Google({
+        clientId: process.env.AUTH_GOOGLE_ID,
+        clientSecret: process.env.AUTH_GOOGLE_SECRET,
+        allowDangerousEmailAccountLinking: false,
+      })
+    : null,
+  process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET
+    ? GitHub({
+        clientId: process.env.AUTH_GITHUB_ID,
+        clientSecret: process.env.AUTH_GITHUB_SECRET,
+        allowDangerousEmailAccountLinking: false,
+      })
+    : null,
+].filter((provider): provider is NonNullable<typeof provider> => Boolean(provider));
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret:
     process.env.AUTH_SECRET ??
@@ -46,10 +65,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       : "dev-only-rbac-dashboard-secret-change-me"),
   trustHost: true,
   session: { strategy: "jwt" },
+  cookies: {
+    sessionToken: {
+      name:
+        process.env.NODE_ENV === "production"
+          ? "__Secure-authjs.session-token"
+          : "authjs.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
   pages: {
     signIn: "/login",
   },
   providers: [
+    ...oauthProviders,
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
@@ -87,10 +121,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
-        token.role = user.role as Role;
+        token.role = (user.role as Role | undefined) ?? "user";
+        token.provider = account?.provider ?? "credentials";
+        token.providerAccountId = account?.providerAccountId ?? user.id;
       }
 
       return token;
@@ -101,7 +137,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = token.role as Role;
       }
 
+      session.provider =
+        token.provider === "google" || token.provider === "github"
+          ? token.provider
+          : undefined;
+      session.providerAccountId =
+        typeof token.providerAccountId === "string"
+          ? token.providerAccountId
+          : undefined;
+
       return session;
+    },
+    redirect({ url, baseUrl }) {
+      const targetUrl = url.startsWith("/")
+        ? `${baseUrl}${url}`
+        : url.startsWith(baseUrl)
+          ? url
+          : baseUrl;
+
+      if (targetUrl.startsWith(`${baseUrl}/api/auth/finalize`)) {
+        return targetUrl;
+      }
+
+      return `${baseUrl}/api/auth/finalize?callbackUrl=${encodeURIComponent(
+        targetUrl
+      )}`;
     },
   },
 });

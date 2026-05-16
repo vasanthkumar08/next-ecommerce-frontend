@@ -35,7 +35,13 @@ function ProductGrid({ products, loading = false, skeletonCount = 10 }: Props) {
   return (
     <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,150px),1fr))] gap-3 sm:gap-5 lg:grid-cols-4">
       {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
+        <div
+          key={product.id}
+          className="min-w-0"
+          style={{ contentVisibility: "auto", containIntrinsicSize: "360px" }}
+        >
+          <ProductCard product={product} />
+        </div>
       ))}
     </div>
   );

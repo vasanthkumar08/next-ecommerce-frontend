@@ -2,7 +2,7 @@ import axios from "axios";
 import { getApiBaseUrl } from "@/lib/apiUrl";
 import {
   clearLocalAuthSession,
-  getStoredAccessToken,
+  getCsrfToken,
   persistAuthSession,
 } from "@/features/auth/authStorage";
 import type { AuthResponse } from "@/features/auth/auth.api";
@@ -36,10 +36,10 @@ const refreshAuthSession = async () => {
 };
 
 api.interceptors.request.use((config) => {
-  const token = getStoredAccessToken();
+  const csrfToken = getCsrfToken();
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (csrfToken) {
+    config.headers["X-CSRF-Token"] = csrfToken;
   }
 
   return config;
@@ -76,7 +76,6 @@ api.interceptors.response.use(
         );
 
         originalRequest.headers = originalRequest.headers ?? {};
-        originalRequest.headers.Authorization = `Bearer ${refreshedSession.accessToken}`;
         originalRequest.headers["x-auth-retry"] = "1";
 
         return api(originalRequest);

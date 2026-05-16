@@ -31,5 +31,10 @@ export function normalizeApiBaseUrl(apiUrl: string) {
 }
 
 export function getApiBaseUrl() {
-  return normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_URL ?? "");
+  const apiUrl =
+    typeof window === "undefined"
+      ? process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? ""
+      : process.env.NEXT_PUBLIC_API_URL ?? "";
+
+  return normalizeApiBaseUrl(apiUrl);
 }

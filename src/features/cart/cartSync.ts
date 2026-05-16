@@ -1,9 +1,10 @@
 import axios from "axios";
-import { getStoredAccessToken } from "@/features/auth/authStorage";
+import { getCsrfToken } from "@/features/auth/authStorage";
 import { getApiBaseUrl } from "@/lib/apiUrl";
 import type { CartItem } from "./cartSlice";
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
+let syncPaused = false;
 const objectIdPattern = /^[a-f\d]{24}$/i;
 type BackendProductRef =
   | string
@@ -26,7 +27,83 @@ const getBackendProductId = (product: BackendProductRef) => {
   return product?._id ?? product?.id ?? "";
 };
 
+export async function syncCartToBackendNow(
+  items: CartItem[],
+  isAuthenticated: boolean
+): Promise<boolean> {
+  if (!isAuthenticated) return false;
+
+  try {
+    const apiUrl = getApiBaseUrl();
+
+    if (!apiUrl) return false;
+
+    const headers = {
+      "Content-Type": "application/json",
+      ...(getCsrfToken() ? { "X-CSRF-Token": getCsrfToken() as string } : {}),
+    };
+    const validItems = items.filter((item) => objectIdPattern.test(item.id));
+
+    const currentCart = await axios.get<BackendCartResponse>(
+      `${apiUrl}/v1/cart`,
+      {
+        headers,
+        withCredentials: true,
+      }
+    );
+    const currentItems = new Map(
+      (currentCart.data.data?.items ?? []).map((item) => [
+        getBackendProductId(item.product),
+        item.quantity,
+      ])
+    );
+    const desiredItems = new Map(
+      validItems.map((item) => [item.id, item.quantity])
+    );
+
+    await Promise.all([
+      ...validItems.map((item) => {
+        const payload = {
+          productId: item.id,
+          quantity: item.quantity,
+        };
+        const existingQuantity = currentItems.get(item.id);
+
+        if (existingQuantity === undefined) {
+          return axios.post(`${apiUrl}/v1/cart/items`, payload, {
+            headers,
+            withCredentials: true,
+          });
+        }
+
+        if (existingQuantity !== item.quantity) {
+          return axios.put(`${apiUrl}/v1/cart/items`, payload, {
+            headers,
+            withCredentials: true,
+          });
+        }
+
+        return Promise.resolve();
+      }),
+      ...[...currentItems.keys()]
+        .filter((productId) => productId && !desiredItems.has(productId))
+        .map((productId) =>
+          axios.delete(`${apiUrl}/v1/cart/items/${productId}`, {
+            headers,
+            withCredentials: true,
+          })
+        ),
+    ]);
+
+    return true;
+  } catch {
+    // Local cart remains available if backend sync is unavailable.
+    return false;
+  }
+}
+
 export function syncCartToBackend(items: CartItem[], isAuthenticated: boolean) {
+  if (syncPaused) return;
   if (!isAuthenticated) return;
 
   if (syncTimer) {
@@ -35,71 +112,27 @@ export function syncCartToBackend(items: CartItem[], isAuthenticated: boolean) {
 
   syncTimer = setTimeout(() => {
     void (async () => {
-      try {
-        const accessToken = getStoredAccessToken();
-        const apiUrl = getApiBaseUrl();
-
-        if (!accessToken || !apiUrl) return;
-
-        const headers = {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        };
-        const validItems = items.filter((item) => objectIdPattern.test(item.id));
-
-        const currentCart = await axios.get<BackendCartResponse>(
-          `${apiUrl}/v1/cart`,
-          {
-            headers,
-            withCredentials: true,
-          }
-        );
-        const currentItems = new Map(
-          (currentCart.data.data?.items ?? []).map((item) => [
-            getBackendProductId(item.product),
-            item.quantity,
-          ])
-        );
-        const desiredItems = new Map(
-          validItems.map((item) => [item.id, item.quantity])
-        );
-
-        await Promise.all([
-          ...validItems.map((item) => {
-            const payload = {
-              productId: item.id,
-              quantity: item.quantity,
-            };
-            const existingQuantity = currentItems.get(item.id);
-
-            if (existingQuantity === undefined) {
-              return axios.post(`${apiUrl}/v1/cart/items`, payload, {
-                headers,
-                withCredentials: true,
-              });
-            }
-
-            if (existingQuantity !== item.quantity) {
-              return axios.put(`${apiUrl}/v1/cart/items`, payload, {
-                headers,
-                withCredentials: true,
-              });
-            }
-
-            return Promise.resolve();
-          }),
-          ...[...currentItems.keys()]
-            .filter((productId) => productId && !desiredItems.has(productId))
-            .map((productId) =>
-              axios.delete(`${apiUrl}/v1/cart/items/${productId}`, {
-                headers,
-                withCredentials: true,
-              })
-            ),
-        ]);
-      } catch {
-        // Local cart remains the source of truth if backend sync is unavailable.
-      }
+      await syncCartToBackendNow(items, isAuthenticated);
     })();
   }, 400);
+}
+
+export function pauseCartSync(): void {
+  // Logout invalidates the session, not the user's persistent cart. Any queued
+  // sync using the soon-to-be-revoked cookies must be cancelled so an empty or
+  // guest cart cannot overwrite the server-side user cart.
+  syncPaused = true;
+
+  if (syncTimer) {
+    clearTimeout(syncTimer);
+    syncTimer = null;
+  }
+}
+
+export function resumeCartSync(): void {
+  syncPaused = false;
+}
+
+export function isCartSyncPaused(): boolean {
+  return syncPaused;
 }

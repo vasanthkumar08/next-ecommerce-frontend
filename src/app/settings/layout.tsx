@@ -1,15 +1,18 @@
 import { redirect } from "next/navigation";
-import ProfilePage from "@/components/ProfilePage";
 import { getServerUserSession } from "@/lib/auth/serverSession";
 
 export const dynamic = "force-dynamic";
 
-export default async function Page() {
+export default async function SettingsLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const session = await getServerUserSession();
 
   if (!session) {
-    redirect("/login?next=/profile");
+    redirect("/login?next=/settings");
   }
 
-  return <ProfilePage />;
+  return <>{children}</>;
 }

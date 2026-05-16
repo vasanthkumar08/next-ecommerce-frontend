@@ -1,22 +1,34 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAppSelector } from "@/store/hooks";
 
 export default function ProtectedRoute({
   children,
+  nextPath,
 }: {
   children: React.ReactNode;
+  nextPath?: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isAuthenticated, loading, hydrated } = useAppSelector((state) => state.auth);
+  const redirectTarget = nextPath ?? pathname;
 
   useEffect(() => {
     if (hydrated && !loading && !isAuthenticated) {
-      router.push("/login");
+      if (process.env.NODE_ENV !== "production") {
+        console.info("client_auth_guard", {
+          event: "redirect_to_login",
+          path: redirectTarget,
+          reason: "hydrated_unauthenticated",
+        });
+      }
+
+      router.replace(`/login?next=${encodeURIComponent(redirectTarget)}`);
     }
-  }, [hydrated, isAuthenticated, loading, router]);
+  }, [hydrated, isAuthenticated, loading, redirectTarget, router]);
 
   if (!hydrated || loading) {
     return (

@@ -201,7 +201,15 @@ export async function proxy(request: Request) {
   }
 
   if (isProtectedUserRoute(pathname) && !session) {
-    return redirectToLogin(nextUrl, "missing_or_invalid_session");
+    if (process.env.NODE_ENV !== "production") {
+      console.info("frontend_auth_proxy", {
+        event: "user_route_deferred_to_client_guard",
+        path: pathname,
+        reason: "backend_auth_cookies_are_api_domain_scoped",
+      });
+    }
+
+    return NextResponse.next();
   }
 
   // Edge RBAC is the first gate: unauthenticated users go to /login,

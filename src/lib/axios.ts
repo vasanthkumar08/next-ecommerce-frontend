@@ -17,6 +17,50 @@ const api = axios.create({
 
 let refreshPromise: Promise<AuthResponse> | null = null;
 
+type ApiErrorBody = {
+  message?: string;
+};
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+export const isConfirmedInvalidRefreshError = (error: unknown): boolean => {
+  if (!axios.isAxiosError<ApiErrorBody>(error)) return false;
+
+  const message = String(error.response?.data?.message ?? "").toLowerCase();
+
+  return (
+    error.response?.status === 401 &&
+    (message.includes("suspicious session") ||
+      message.includes("refresh token expired or invalid"))
+  );
+};
+
+const shouldRetryRefreshError = (error: unknown): boolean => {
+  if (isConfirmedInvalidRefreshError(error)) return false;
+
+  if (!axios.isAxiosError(error)) return false;
+
+  const status = error.response?.status;
+
+  return (
+    status === 401 ||
+    status === 403 ||
+    error.code === "ERR_NETWORK" ||
+    error.code === "ECONNABORTED"
+  );
+};
+
+const postRefresh = async (apiUrl: string): Promise<AuthResponse> => {
+  const response = await axios.post<AuthResponse>(
+    `${apiUrl}/v1/auth/refresh`,
+    {},
+    { withCredentials: true }
+  );
+
+  return response.data;
+};
+
 export const refreshAuthSession = async () => {
   const apiUrl = getApiBaseUrl();
 
@@ -28,17 +72,31 @@ export const refreshAuthSession = async () => {
     console.info("auth_refresh", { event: "deduped_inflight" });
   }
 
-  refreshPromise ??= axios
-    .post<AuthResponse>(`${apiUrl}/v1/auth/refresh`, {}, { withCredentials: true })
-    .then((response) => {
+  refreshPromise ??= postRefresh(apiUrl)
+    .catch(async (error: unknown) => {
+      if (!shouldRetryRefreshError(error)) {
+        throw error;
+      }
+
       if (process.env.NODE_ENV !== "production") {
         console.info("auth_refresh", {
-          event: "success",
-          hasCsrfToken: Boolean(response.data.csrfToken),
+          event: "retry_scheduled",
+          status: axios.isAxiosError(error) ? error.response?.status ?? null : null,
         });
       }
 
-      return response.data;
+      await sleep(700);
+      return postRefresh(apiUrl);
+    })
+    .then((session) => {
+      if (process.env.NODE_ENV !== "production") {
+        console.info("auth_refresh", {
+          event: "success",
+          hasCsrfToken: Boolean(session.csrfToken),
+        });
+      }
+
+      return session;
     })
     .catch((error: unknown) => {
       if (process.env.NODE_ENV !== "production") {
@@ -122,14 +180,9 @@ api.interceptors.response.use(
       }
     }
 
-    if (
-      status === 401 &&
-      !isAuthRequest &&
-      !refreshFailedAuth &&
-      typeof window !== "undefined"
-    ) {
-      const next = encodeURIComponent(window.location.pathname);
-      window.location.href = `/login?next=${next}`;
+    if (status === 401 && !isAuthRequest && !refreshFailedAuth) {
+      // Navigation is owned by route guards so protected pages can wait through
+      // mobile cookie propagation and unknown auth states without flapping.
     }
 
     return Promise.reject(error);

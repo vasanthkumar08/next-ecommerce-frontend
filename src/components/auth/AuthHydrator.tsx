@@ -4,7 +4,10 @@ import axios from "axios";
 import { useEffect } from "react";
 import { hydrateAuth, markAuthUnknown } from "@/features/auth/authSlice";
 import { getApiBaseUrl } from "@/lib/apiUrl";
-import { refreshAuthSession } from "@/lib/axios";
+import {
+  isConfirmedInvalidRefreshError,
+  refreshAuthSession,
+} from "@/lib/axios";
 import {
   AUTH_SESSION_EVENT,
   getAuthSessionEpoch,
@@ -162,7 +165,9 @@ export default function AuthHydrator() {
           ? error.response?.status
           : undefined;
 
-        if (status === 401 || status === 403) {
+        if (isConfirmedInvalidRefreshError(error)) {
+          dispatch(hydrateAuth({ user: null, accessToken: null }));
+        } else if (status === 401 || status === 403) {
           // A failed refresh means the browser currently has no usable backend
           // session. It is not a logout event and must not clear cookies,
           // revoke sessions, emit global logout-style auth events, or redirect

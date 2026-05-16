@@ -117,6 +117,7 @@ export default function CheckoutPage() {
   const user = useAppSelector((state) => state.auth.user);
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const authHydrated = useAppSelector((state) => state.auth.hydrated);
+  const authStatus = useAppSelector((state) => state.auth.status);
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -354,7 +355,7 @@ export default function CheckoutPage() {
   );
 
   const handleCheckout = useCallback(async () => {
-    if (!authHydrated) {
+    if (!authHydrated || authStatus === "loading" || authStatus === "unknown") {
       setError("Restoring your session. Please try again in a moment.");
       return;
     }
@@ -397,6 +398,7 @@ export default function CheckoutPage() {
   }, [
     dispatch,
     authHydrated,
+    authStatus,
     isAuthenticated,
     items,
     openRazorpay,

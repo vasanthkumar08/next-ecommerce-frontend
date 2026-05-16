@@ -4,6 +4,7 @@ import { markPerf, measurePerf } from "@/lib/perf";
 
 export const AUTH_SESSION_EVENT = "vasanthtrends:auth-session";
 const CSRF_COOKIE_NAME = "csrfToken";
+const CSRF_SESSION_STORAGE_KEY = "vasanthtrends:csrf-token";
 let logoutRequest: Promise<void> | null = null;
 let logoutCompleted = false;
 let authSessionEpoch = 0;
@@ -46,11 +47,28 @@ export const getCookieValue = (name: string): string | null => {
   return value ? decodeURIComponent(value) : null;
 };
 
-export const getCsrfToken = (): string | null => getCookieValue(CSRF_COOKIE_NAME);
+const getStoredCsrfToken = (): string | null => {
+  if (!canUseBrowser()) return null;
+  return window.sessionStorage.getItem(CSRF_SESSION_STORAGE_KEY);
+};
+
+const setStoredCsrfToken = (csrfToken: string | undefined): void => {
+  if (!canUseBrowser() || !csrfToken) return;
+  window.sessionStorage.setItem(CSRF_SESSION_STORAGE_KEY, csrfToken);
+};
+
+const clearStoredCsrfToken = (): void => {
+  if (!canUseBrowser()) return;
+  window.sessionStorage.removeItem(CSRF_SESSION_STORAGE_KEY);
+};
+
+export const getCsrfToken = (): string | null =>
+  getCookieValue(CSRF_COOKIE_NAME) ?? getStoredCsrfToken();
 
 export const clearLocalAuthSession = () => {
   // Access and refresh tokens are HTTP-only cookies owned by the backend.
   // The client intentionally clears only in-memory state, reducing XSS impact.
+  clearStoredCsrfToken();
   authSessionEpoch += 1;
   notifyAuthSessionChanged();
 };
@@ -58,9 +76,16 @@ export const clearLocalAuthSession = () => {
 export const getStoredAccessToken = (): string | null => null;
 export const getStoredUser = (): User | null => null;
 
-export const persistAuthSession = (_accessToken: string, _user: User) => {
+export const persistAuthSession = (
+  _accessToken: string,
+  _user: User,
+  csrfToken?: string
+) => {
   // Tokens are delivered as HTTP-only cookies. Redux receives user data from the
-  // caller; no browser persistence is needed here.
+  // caller; no browser token persistence is needed here. In cross-origin
+  // deployments the csrfToken cookie belongs to the API domain, so the backend
+  // also returns the nonce in JSON for this first-party app to echo in headers.
+  setStoredCsrfToken(csrfToken);
   logoutCompleted = false;
   authSessionEpoch += 1;
 };

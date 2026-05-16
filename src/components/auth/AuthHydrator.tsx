@@ -3,8 +3,8 @@
 import axios from "axios";
 import { useEffect } from "react";
 import { hydrateAuth } from "@/features/auth/authSlice";
-import type { AuthResponse } from "@/features/auth/auth.api";
 import { getApiBaseUrl } from "@/lib/apiUrl";
+import { refreshAuthSession } from "@/lib/axios";
 import {
   AUTH_SESSION_EVENT,
   clearLocalAuthSession,
@@ -73,8 +73,7 @@ export default function AuthHydrator() {
       });
     }
 
-    axios
-      .post<AuthResponse>(`${apiUrl}/v1/auth/refresh`, {}, { withCredentials: true })
+    refreshAuthSession()
       .then((response) => {
         if (cancelled) return;
         if (hasCompletedLogout() || getAuthSessionEpoch() !== hydrationEpoch) {
@@ -88,10 +87,14 @@ export default function AuthHydrator() {
           return;
         }
 
-        persistAuthSession(response.data.accessToken, response.data.user);
+        persistAuthSession(
+          response.accessToken,
+          response.user,
+          response.csrfToken
+        );
         markPerf("auth-hydration:refresh-end", {
           status: 200,
-          userId: response.data.user.id,
+          userId: response.user.id,
         });
         measurePerf(
           "auth-hydration:refresh",
@@ -101,27 +104,37 @@ export default function AuthHydrator() {
         );
         dispatch(
           hydrateAuth({
-            user: response.data.user,
-            accessToken: response.data.accessToken,
+            user: response.user,
+            accessToken: response.accessToken,
           })
         );
 
         if (process.env.NODE_ENV !== "production") {
           console.info("auth_hydration", {
             event: "refresh_succeeded",
-            userId: response.data.user.id,
+            userId: response.user.id,
             epoch: getAuthSessionEpoch(),
           });
         }
       })
       .catch((error: unknown) => {
         if (cancelled) return;
+        if (hasCompletedLogout() || getAuthSessionEpoch() !== hydrationEpoch) {
+          if (process.env.NODE_ENV !== "production") {
+            console.info("auth_hydration", {
+              event: "stale_refresh_failure_ignored",
+              startedEpoch: hydrationEpoch,
+              currentEpoch: getAuthSessionEpoch(),
+            });
+          }
+          return;
+        }
 
         const status = axios.isAxiosError(error)
           ? error.response?.status
           : undefined;
 
-        if (status === 401 || status === 403 || status === 429) {
+        if (status === 401 || status === 403) {
           clearLocalAuthSession();
           dispatch(hydrateAuth({ user: null, accessToken: null }));
         }

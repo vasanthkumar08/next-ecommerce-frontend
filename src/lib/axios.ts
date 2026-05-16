@@ -18,16 +18,39 @@ const api = axios.create({
 
 let refreshPromise: Promise<AuthResponse> | null = null;
 
-const refreshAuthSession = async () => {
+export const refreshAuthSession = async () => {
   const apiUrl = getApiBaseUrl();
 
   if (!apiUrl) {
     throw new Error("NEXT_PUBLIC_API_URL is not configured");
   }
 
+  if (refreshPromise && process.env.NODE_ENV !== "production") {
+    console.info("auth_refresh", { event: "deduped_inflight" });
+  }
+
   refreshPromise ??= axios
     .post<AuthResponse>(`${apiUrl}/v1/auth/refresh`, {}, { withCredentials: true })
-    .then((response) => response.data)
+    .then((response) => {
+      if (process.env.NODE_ENV !== "production") {
+        console.info("auth_refresh", {
+          event: "success",
+          hasCsrfToken: Boolean(response.data.csrfToken),
+        });
+      }
+
+      return response.data;
+    })
+    .catch((error: unknown) => {
+      if (process.env.NODE_ENV !== "production") {
+        console.info("auth_refresh", {
+          event: "failed",
+          status: axios.isAxiosError(error) ? error.response?.status ?? null : null,
+        });
+      }
+
+      throw error;
+    })
     .finally(() => {
       refreshPromise = null;
     });
@@ -72,7 +95,8 @@ api.interceptors.response.use(
 
         persistAuthSession(
           refreshedSession.accessToken,
-          refreshedSession.user
+          refreshedSession.user,
+          refreshedSession.csrfToken
         );
 
         originalRequest.headers = originalRequest.headers ?? {};
@@ -86,15 +110,14 @@ api.interceptors.response.use(
 
         if (
           refreshStatus === 401 ||
-          refreshStatus === 403 ||
-          refreshStatus === 429
+          refreshStatus === 403
         ) {
           clearLocalAuthSession();
         }
       }
     }
 
-    if (status === 401 && typeof window !== "undefined") {
+    if (status === 401 && !isAuthRequest && typeof window !== "undefined") {
       const next = encodeURIComponent(window.location.pathname);
       window.location.href = `/login?next=${next}`;
     }

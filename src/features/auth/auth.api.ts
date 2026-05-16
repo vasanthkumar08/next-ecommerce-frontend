@@ -28,6 +28,7 @@ export interface AuthResponse {
   message?: string;
   user: User;
   accessToken: string;
+  csrfToken?: string;
 }
 
 export interface RegisterResponse {

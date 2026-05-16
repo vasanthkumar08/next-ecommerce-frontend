@@ -32,7 +32,7 @@ export default function ProtectedRoute({
     }
   }, [hydrated, loading, redirectTarget, router, status]);
 
-  if (!hydrated || loading || status === "loading") {
+  if (!hydrated || loading || status === "loading" || status === "unknown") {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#1a73e8] border-t-transparent" />

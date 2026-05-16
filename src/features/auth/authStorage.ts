@@ -9,7 +9,8 @@ let logoutRequest: Promise<void> | null = null;
 let logoutCompleted = false;
 let authSessionEpoch = 0;
 let lastAuthSuccessAt = 0;
-const postLoginRefreshDelayMs = 600;
+const postLoginRefreshDelayMs = 900;
+const postLoginRefreshSkipMs = 2_000;
 
 const canUseBrowser = () => typeof window !== "undefined";
 
@@ -97,6 +98,8 @@ export const getAuthSessionEpoch = (): number => authSessionEpoch;
 export const hasCompletedLogout = (): boolean => logoutCompleted;
 export const getPostLoginRefreshDelayMs = (): number =>
   Math.max(0, postLoginRefreshDelayMs - (Date.now() - lastAuthSuccessAt));
+export const shouldSkipRefreshAfterRecentLogin = (): boolean =>
+  lastAuthSuccessAt > 0 && Date.now() - lastAuthSuccessAt < postLoginRefreshSkipMs;
 
 export const clearAuthSession = async (source = "unknown"): Promise<void> => {
   if (logoutRequest) {

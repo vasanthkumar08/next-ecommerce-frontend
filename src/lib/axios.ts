@@ -82,6 +82,7 @@ api.interceptors.response.use(
       requestUrl.includes("/v1/auth/register") ||
       requestUrl.includes("/v1/auth/refresh") ||
       requestUrl.includes("/v1/auth/logout");
+    let refreshFailedAuth = false;
 
     if (
       status === 401 &&
@@ -108,6 +109,7 @@ api.interceptors.response.use(
           : undefined;
 
         if (refreshStatus === 401 || refreshStatus === 403) {
+          refreshFailedAuth = true;
           // Refresh failure means the current request is unauthenticated. It is
           // not a logout event; AuthHydrator owns final auth-state resolution.
           if (process.env.NODE_ENV !== "production") {
@@ -120,7 +122,12 @@ api.interceptors.response.use(
       }
     }
 
-    if (status === 401 && !isAuthRequest && typeof window !== "undefined") {
+    if (
+      status === 401 &&
+      !isAuthRequest &&
+      !refreshFailedAuth &&
+      typeof window !== "undefined"
+    ) {
       const next = encodeURIComponent(window.location.pathname);
       window.location.href = `/login?next=${next}`;
     }

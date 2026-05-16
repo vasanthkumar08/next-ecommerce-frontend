@@ -21,7 +21,7 @@ const createAuthThunk = createAsyncThunk.withTypes<{
 interface AuthState {
   user: User | null;
   accessToken: string | null;
-  status: "loading" | "authenticated" | "guest";
+  status: "loading" | "authenticated" | "guest" | "unknown";
   loading: boolean;
   logoutLoading: boolean;
   hydrated: boolean;
@@ -191,6 +191,13 @@ const authSlice = createSlice({
       state.status = state.isAuthenticated ? "authenticated" : "guest";
       state.hydrated = true;
     },
+    markAuthUnknown: (state) => {
+      state.status = "unknown";
+      state.hydrated = true;
+      state.isAuthenticated = false;
+      state.user = null;
+      state.accessToken = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -240,5 +247,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { hydrateAuth } = authSlice.actions;
+export const { hydrateAuth, markAuthUnknown } = authSlice.actions;
 export default authSlice.reducer;

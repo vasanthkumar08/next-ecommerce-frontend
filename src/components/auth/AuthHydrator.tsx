@@ -2,7 +2,7 @@
 
 import axios from "axios";
 import { useEffect } from "react";
-import { hydrateAuth } from "@/features/auth/authSlice";
+import { hydrateAuth, markAuthUnknown } from "@/features/auth/authSlice";
 import { getApiBaseUrl } from "@/lib/apiUrl";
 import { refreshAuthSession } from "@/lib/axios";
 import {
@@ -11,6 +11,7 @@ import {
   getPostLoginRefreshDelayMs,
   hasCompletedLogout,
   persistAuthSession,
+  shouldSkipRefreshAfterRecentLogin,
 } from "@/features/auth/authStorage";
 import { useAppDispatch } from "@/store/hooks";
 import { markPerf, measurePerf } from "@/lib/perf";
@@ -63,6 +64,17 @@ export default function AuthHydrator() {
     }
 
     const runHydration = async () => {
+      if (shouldSkipRefreshAfterRecentLogin()) {
+        if (process.env.NODE_ENV !== "production") {
+          console.info("auth_hydration", {
+            event: "refresh_skipped_after_recent_login",
+            reason: "mobile_cookie_settle_window",
+          });
+        }
+
+        return;
+      }
+
       const postLoginDelay = getPostLoginRefreshDelayMs();
 
       if (postLoginDelay > 0) {
@@ -153,8 +165,10 @@ export default function AuthHydrator() {
         if (status === 401 || status === 403) {
           // A failed refresh means the browser currently has no usable backend
           // session. It is not a logout event and must not clear cookies,
-          // revoke sessions, or emit global logout-style auth events.
-          dispatch(hydrateAuth({ user: null, accessToken: null }));
+          // revoke sessions, emit global logout-style auth events, or redirect
+          // immediately. Mobile browsers can expose cookies to XHR slightly
+          // after Set-Cookie is accepted, so this is an unknown state.
+          dispatch(markAuthUnknown());
         }
 
         markPerf("auth-hydration:refresh-end", { status: status ?? 0 });

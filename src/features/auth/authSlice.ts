@@ -194,9 +194,11 @@ const authSlice = createSlice({
     markAuthUnknown: (state) => {
       state.status = "unknown";
       state.hydrated = true;
-      state.isAuthenticated = false;
-      state.user = null;
-      state.accessToken = null;
+      // Unknown means the browser could not currently verify the backend
+      // session, often because mobile/cross-site cookies are still settling.
+      // Preserve the last known user so cart/order ownership does not fall back
+      // to guest and split data across devices.
+      state.isAuthenticated = Boolean(state.user && state.accessToken);
     },
   },
   extraReducers: (builder) => {

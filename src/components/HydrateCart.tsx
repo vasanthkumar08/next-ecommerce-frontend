@@ -26,12 +26,17 @@ export default function HydrateCart({
   const dispatch = useAppDispatch();
   const userId = useAppSelector((state) => state.auth.user?.id);
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const authStatus = useAppSelector((state) => state.auth.status);
   const hydrationRun = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
     const runId = hydrationRun.current + 1;
     hydrationRun.current = runId;
+
+    if (authStatus === "loading" || authStatus === "unknown") {
+      return;
+    }
 
     if (!isAuthenticated || !userId) {
       // Logout should switch the visible cart to the guest cart without
@@ -88,7 +93,7 @@ export default function HydrateCart({
     return () => {
       cancelled = true;
     };
-  }, [dispatch, isAuthenticated, userId]);
+  }, [authStatus, dispatch, isAuthenticated, userId]);
 
   return <>{children}</>;
 }

@@ -13,6 +13,7 @@ export default function PersistCart() {
   const hydrated = useAppSelector((state) => state.cart.hydrated);
   const userId = useAppSelector((state) => state.auth.user?.id);
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const authStatus = useAppSelector((state) => state.auth.status);
   const logoutLoading = useAppSelector((state) => state.auth.logoutLoading);
 
   useEffect(() => {
@@ -26,13 +27,13 @@ export default function PersistCart() {
 
     saveCart(items, userId);
 
-    if (isAuthenticated) {
+    if (isAuthenticated && authStatus === "authenticated") {
       if (isCartSyncPaused()) {
         return;
       }
       syncCartToBackend(items, true);
     }
-  }, [hydrated, isAuthenticated, items, logoutLoading, userId]);
+  }, [authStatus, hydrated, isAuthenticated, items, logoutLoading, userId]);
 
   return null;
 }

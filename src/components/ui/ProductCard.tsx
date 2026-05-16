@@ -9,7 +9,9 @@ import { addToCart } from "@/features/cart/cartSlice";
 import { flyProductImageToCart } from "@/utils/flyToCart";
 import { openCartDrawer } from "@/utils/cartDrawerEvents";
 import {
+  addWishlistItem,
   addToWishlist,
+  removeWishlistItem,
   removeFromWishlist,
 } from "@/features/wishlist/wishlistSlice";
 import { toast as sonnerToast } from "sonner";
@@ -40,6 +42,7 @@ function ProductCard({ product }: ProductCardProps) {
   const router = useRouter();
   const pricing = useMemo(() => getPricing(product), [product]);
   const isLoggedIn = useAppSelector((state) => state.auth.isAuthenticated);
+  const authStatus = useAppSelector((state) => state.auth.status);
   const authHydrated = useAppSelector((state) => state.auth.hydrated);
   const role = useAppSelector((state) => state.auth.user?.role);
 
@@ -80,15 +83,37 @@ function ProductCard({ product }: ProductCardProps) {
   );
 
   const handleWishlist = useCallback(() => {
+    if (authStatus === "loading" || authStatus === "unknown") {
+      sonnerToast.info("Restoring your session...");
+      return;
+    }
+
     if (isWishlisted) {
+      if (isLoggedIn && objectIdPattern.test(product.id)) {
+        void dispatch(removeWishlistItem(product.id));
+        sonnerToast.success("Success");
+        return;
+      }
+
       dispatch(removeFromWishlist(product.id));
+      sonnerToast.success("Success");
+      return;
+    }
+
+    if (isLoggedIn) {
+      if (!objectIdPattern.test(product.id)) {
+        sonnerToast.error("This product is still syncing. Please refresh and try again.");
+        return;
+      }
+
+      void dispatch(addWishlistItem(product));
       sonnerToast.success("Success");
       return;
     }
 
     dispatch(addToWishlist(product));
     sonnerToast.success("Success");
-  }, [dispatch, isWishlisted, product]);
+  }, [authStatus, dispatch, isLoggedIn, isWishlisted, product]);
 
   return (
     <BaseProductCard

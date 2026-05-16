@@ -3,7 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { removeFromWishlist } from "@/features/wishlist/wishlistSlice";
+import {
+  removeFromWishlist,
+  removeWishlistItem,
+} from "@/features/wishlist/wishlistSlice";
 import { addToCart } from "@/features/cart/cartSlice";
 import { useToastContext } from "@/context/ToastContext";
 import Badge from "@/components/ui/Badge";
@@ -20,8 +23,15 @@ export default function WishlistPage() {
   const dispatch = useAppDispatch();
   const toast = useToastContext();
   const items = useAppSelector((state) => state.wishlist.items);
+  const authStatus = useAppSelector((state) => state.auth.status);
 
   const handleRemove = (id: string) => {
+    if (authStatus === "authenticated") {
+      void dispatch(removeWishlistItem(id));
+      toast.info("Success");
+      return;
+    }
+
     dispatch(removeFromWishlist(id));
     toast.info("Success");
   };

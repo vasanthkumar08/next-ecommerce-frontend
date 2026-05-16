@@ -1,18 +1,15 @@
-import { redirect } from "next/navigation";
-import { getServerUserSession } from "@/lib/auth/serverSession";
+"use client";
 
-export const dynamic = "force-dynamic";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
-export default async function CartLayout({
+export default function CartLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerUserSession();
-
-  if (!session) {
-    redirect("/login?next=/shop/cart");
-  }
-
-  return <>{children}</>;
+  return (
+    <ProtectedRoute nextPath="/shop/cart">
+      {children}
+    </ProtectedRoute>
+  );
 }

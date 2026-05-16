@@ -173,7 +173,7 @@ export async function proxy(request: Request) {
       ? await verifySessionWithBackend(decodeURIComponent(token))
       : null;
   const refreshed =
-    verifiedSession || backendSession
+    !pathname.startsWith("/admin") || verifiedSession || backendSession
       ? null
       : await refreshSession(request, cookieHeader, nextUrl);
   const session = verifiedSession ?? backendSession ?? refreshed?.session ?? null;

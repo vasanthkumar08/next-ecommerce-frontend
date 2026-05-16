@@ -1,6 +1,5 @@
-import axios from "axios";
+import api from "@/lib/axios";
 import { getCsrfToken } from "@/features/auth/authStorage";
-import { getApiBaseUrl } from "@/lib/apiUrl";
 import type { CartItem } from "./cartSlice";
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
@@ -34,23 +33,15 @@ export async function syncCartToBackendNow(
   if (!isAuthenticated) return false;
 
   try {
-    const apiUrl = getApiBaseUrl();
-
-    if (!apiUrl) return false;
-
     const headers = {
       "Content-Type": "application/json",
       ...(getCsrfToken() ? { "X-CSRF-Token": getCsrfToken() as string } : {}),
     };
     const validItems = items.filter((item) => objectIdPattern.test(item.id));
 
-    const currentCart = await axios.get<BackendCartResponse>(
-      `${apiUrl}/v1/cart`,
-      {
-        headers,
-        withCredentials: true,
-      }
-    );
+    const currentCart = await api.get<BackendCartResponse>("/v1/cart", {
+      headers,
+    });
     const currentItems = new Map(
       (currentCart.data.data?.items ?? []).map((item) => [
         getBackendProductId(item.product),
@@ -70,16 +61,14 @@ export async function syncCartToBackendNow(
         const existingQuantity = currentItems.get(item.id);
 
         if (existingQuantity === undefined) {
-          return axios.post(`${apiUrl}/v1/cart/items`, payload, {
+          return api.post("/v1/cart/items", payload, {
             headers,
-            withCredentials: true,
           });
         }
 
         if (existingQuantity !== item.quantity) {
-          return axios.put(`${apiUrl}/v1/cart/items`, payload, {
+          return api.put("/v1/cart/items", payload, {
             headers,
-            withCredentials: true,
           });
         }
 
@@ -88,9 +77,8 @@ export async function syncCartToBackendNow(
       ...[...currentItems.keys()]
         .filter((productId) => productId && !desiredItems.has(productId))
         .map((productId) =>
-          axios.delete(`${apiUrl}/v1/cart/items/${productId}`, {
+          api.delete(`/v1/cart/items/${productId}`, {
             headers,
-            withCredentials: true,
           })
         ),
     ]);

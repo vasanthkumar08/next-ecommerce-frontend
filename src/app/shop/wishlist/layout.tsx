@@ -1,18 +1,15 @@
-import { redirect } from "next/navigation";
-import { getServerUserSession } from "@/lib/auth/serverSession";
+"use client";
 
-export const dynamic = "force-dynamic";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
-export default async function WishlistLayout({
+export default function WishlistLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerUserSession();
-
-  if (!session) {
-    redirect("/login?next=/shop/wishlist");
-  }
-
-  return <>{children}</>;
+  return (
+    <ProtectedRoute nextPath="/shop/wishlist">
+      {children}
+    </ProtectedRoute>
+  );
 }

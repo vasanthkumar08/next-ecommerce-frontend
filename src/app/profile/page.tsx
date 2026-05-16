@@ -1,15 +1,12 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import ProfilePage from "@/components/ProfilePage";
-import { getServerUserSession } from "@/lib/auth/serverSession";
 
-export const dynamic = "force-dynamic";
-
-export default async function Page() {
-  const session = await getServerUserSession();
-
-  if (!session) {
-    redirect("/login?next=/profile");
-  }
-
-  return <ProfilePage />;
+export default function Page() {
+  return (
+    <ProtectedRoute nextPath="/profile">
+      <ProfilePage />
+    </ProtectedRoute>
+  );
 }

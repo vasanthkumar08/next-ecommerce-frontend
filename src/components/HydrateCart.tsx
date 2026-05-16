@@ -15,6 +15,7 @@ import { fetchBackendCart } from "@/features/cart/cartBackend";
 import {
   pauseCartSync,
   resumeCartSync,
+  suppressNextCartSync,
   syncCartToBackendNow,
 } from "@/features/cart/cartSync";
 
@@ -83,6 +84,7 @@ export default function HydrateCart({
           // Keep guest cart if merge failed; it can be retried on the next
           // successful authenticated hydration instead of being lost.
           dispatch(hydrateCart(localUserCart));
+          suppressNextCartSync(localUserCart);
           resumeCartSync();
         }
       }

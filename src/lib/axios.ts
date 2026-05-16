@@ -19,6 +19,7 @@ let refreshPromise: Promise<AuthResponse> | null = null;
 
 type ApiErrorBody = {
   message?: string;
+  code?: string | number | null;
 };
 
 const sleep = (ms: number): Promise<void> =>
@@ -42,6 +43,11 @@ const shouldRetryRefreshError = (error: unknown): boolean => {
   if (!axios.isAxiosError(error)) return false;
 
   const status = error.response?.status;
+  const code = error.response?.data?.code;
+
+  if (status === 409 && code === "REFRESH_ROTATION_IN_PROGRESS") {
+    return true;
+  }
 
   return (
     status === 401 ||

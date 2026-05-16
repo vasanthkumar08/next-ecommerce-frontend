@@ -4,6 +4,7 @@ import type { CartItem } from "./cartSlice";
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let syncPaused = false;
+let suppressedSnapshotKey: string | null = null;
 const objectIdPattern = /^[a-f\d]{24}$/i;
 type BackendProductRef =
   | string
@@ -25,6 +26,13 @@ const getBackendProductId = (product: BackendProductRef) => {
   if (typeof product === "string") return product;
   return product?._id ?? product?.id ?? "";
 };
+
+const getSnapshotKey = (items: CartItem[]): string =>
+  items
+    .filter((item) => objectIdPattern.test(item.id))
+    .map((item) => `${item.id}:${item.quantity}`)
+    .sort()
+    .join("|");
 
 export async function syncCartToBackendNow(
   items: CartItem[],
@@ -94,6 +102,13 @@ export function syncCartToBackend(items: CartItem[], isAuthenticated: boolean) {
   if (syncPaused) return;
   if (!isAuthenticated) return;
 
+  const snapshotKey = getSnapshotKey(items);
+
+  if (suppressedSnapshotKey && suppressedSnapshotKey === snapshotKey) {
+    suppressedSnapshotKey = null;
+    return;
+  }
+
   if (syncTimer) {
     clearTimeout(syncTimer);
   }
@@ -119,6 +134,10 @@ export function pauseCartSync(): void {
 
 export function resumeCartSync(): void {
   syncPaused = false;
+}
+
+export function suppressNextCartSync(items: CartItem[]): void {
+  suppressedSnapshotKey = getSnapshotKey(items);
 }
 
 export function isCartSyncPaused(): boolean {

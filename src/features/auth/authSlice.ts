@@ -21,6 +21,7 @@ const createAuthThunk = createAsyncThunk.withTypes<{
 interface AuthState {
   user: User | null;
   accessToken: string | null;
+  status: "loading" | "authenticated" | "guest";
   loading: boolean;
   logoutLoading: boolean;
   hydrated: boolean;
@@ -31,6 +32,7 @@ interface AuthState {
 const initialState: AuthState = {
   user: null,
   accessToken: null,
+  status: "loading",
   loading: false,
   logoutLoading: false,
   hydrated: false,
@@ -164,6 +166,7 @@ const clearAuthState = (state: AuthState) => {
   state.user = null;
   state.accessToken = null;
   state.isAuthenticated = false;
+  state.status = "guest";
   state.hydrated = true;
 };
 
@@ -185,6 +188,7 @@ const authSlice = createSlice({
       state.isAuthenticated = Boolean(
         action.payload.user && action.payload.accessToken
       );
+      state.status = state.isAuthenticated ? "authenticated" : "guest";
       state.hydrated = true;
     },
   },
@@ -192,6 +196,7 @@ const authSlice = createSlice({
     builder
       .addCase(login.pending, (state) => {
         state.loading = true;
+        state.status = "loading";
         state.error = null;
       })
       .addCase(login.fulfilled, (state, action) => {
@@ -199,10 +204,12 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.accessToken = action.payload.accessToken;
         state.isAuthenticated = true;
+        state.status = "authenticated";
         state.hydrated = true;
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
+        state.status = "guest";
         state.error = action.payload ?? "Login failed";
       })
       .addCase(register.pending, (state) => {

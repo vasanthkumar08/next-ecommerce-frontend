@@ -8,6 +8,8 @@ const CSRF_SESSION_STORAGE_KEY = "vasanthtrends:csrf-token";
 let logoutRequest: Promise<void> | null = null;
 let logoutCompleted = false;
 let authSessionEpoch = 0;
+let lastAuthSuccessAt = 0;
+const postLoginRefreshDelayMs = 600;
 
 const canUseBrowser = () => typeof window !== "undefined";
 
@@ -87,11 +89,14 @@ export const persistAuthSession = (
   // also returns the nonce in JSON for this first-party app to echo in headers.
   setStoredCsrfToken(csrfToken);
   logoutCompleted = false;
+  lastAuthSuccessAt = Date.now();
   authSessionEpoch += 1;
 };
 
 export const getAuthSessionEpoch = (): number => authSessionEpoch;
 export const hasCompletedLogout = (): boolean => logoutCompleted;
+export const getPostLoginRefreshDelayMs = (): number =>
+  Math.max(0, postLoginRefreshDelayMs - (Date.now() - lastAuthSuccessAt));
 
 export const clearAuthSession = async (source = "unknown"): Promise<void> => {
   if (logoutRequest) {

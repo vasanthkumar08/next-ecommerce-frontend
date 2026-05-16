@@ -13,24 +13,26 @@ export default function ProtectedRoute({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, loading, hydrated } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, loading, hydrated, status } = useAppSelector(
+    (state) => state.auth
+  );
   const redirectTarget = nextPath ?? pathname;
 
   useEffect(() => {
-    if (hydrated && !loading && !isAuthenticated) {
+    if (hydrated && !loading && status === "guest") {
       if (process.env.NODE_ENV !== "production") {
         console.info("client_auth_guard", {
           event: "redirect_to_login",
           path: redirectTarget,
-          reason: "hydrated_unauthenticated",
+          reason: "hydrated_guest",
         });
       }
 
       router.replace(`/login?next=${encodeURIComponent(redirectTarget)}`);
     }
-  }, [hydrated, isAuthenticated, loading, redirectTarget, router]);
+  }, [hydrated, loading, redirectTarget, router, status]);
 
-  if (!hydrated || loading) {
+  if (!hydrated || loading || status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#1a73e8] border-t-transparent" />

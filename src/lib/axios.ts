@@ -1,7 +1,6 @@
 import axios from "axios";
 import { getApiBaseUrl } from "@/lib/apiUrl";
 import {
-  clearLocalAuthSession,
   getCsrfToken,
   persistAuthSession,
 } from "@/features/auth/authStorage";
@@ -108,11 +107,15 @@ api.interceptors.response.use(
           ? refreshError.response?.status
           : undefined;
 
-        if (
-          refreshStatus === 401 ||
-          refreshStatus === 403
-        ) {
-          clearLocalAuthSession();
+        if (refreshStatus === 401 || refreshStatus === 403) {
+          // Refresh failure means the current request is unauthenticated. It is
+          // not a logout event; AuthHydrator owns final auth-state resolution.
+          if (process.env.NODE_ENV !== "production") {
+            console.info("auth_refresh", {
+              event: "request_retry_failed_unauthenticated",
+              status: refreshStatus,
+            });
+          }
         }
       }
     }

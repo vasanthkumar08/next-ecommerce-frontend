@@ -7,8 +7,8 @@ import { getApiBaseUrl } from "@/lib/apiUrl";
 import { refreshAuthSession } from "@/lib/axios";
 import {
   AUTH_SESSION_EVENT,
-  clearLocalAuthSession,
   getAuthSessionEpoch,
+  getPostLoginRefreshDelayMs,
   hasCompletedLogout,
   persistAuthSession,
 } from "@/features/auth/authStorage";
@@ -62,18 +62,34 @@ export default function AuthHydrator() {
       };
     }
 
-    const hydrationEpoch = getAuthSessionEpoch();
-    hydrationInFlight = true;
-    markPerf("auth-hydration:refresh-start", { epoch: hydrationEpoch });
+    const runHydration = async () => {
+      const postLoginDelay = getPostLoginRefreshDelayMs();
 
-    if (process.env.NODE_ENV !== "production") {
-      console.info("auth_hydration", {
-        event: "refresh_started",
-        epoch: hydrationEpoch,
-      });
-    }
+      if (postLoginDelay > 0) {
+        if (process.env.NODE_ENV !== "production") {
+          console.info("auth_hydration", {
+            event: "post_login_refresh_delayed",
+            delayMs: postLoginDelay,
+          });
+        }
 
-    refreshAuthSession()
+        await new Promise((resolve) => window.setTimeout(resolve, postLoginDelay));
+      }
+
+      if (cancelled) return;
+
+      const hydrationEpoch = getAuthSessionEpoch();
+      hydrationInFlight = true;
+      markPerf("auth-hydration:refresh-start", { epoch: hydrationEpoch });
+
+      if (process.env.NODE_ENV !== "production") {
+        console.info("auth_hydration", {
+          event: "refresh_started",
+          epoch: hydrationEpoch,
+        });
+      }
+
+      refreshAuthSession()
       .then((response) => {
         if (cancelled) return;
         if (hasCompletedLogout() || getAuthSessionEpoch() !== hydrationEpoch) {
@@ -135,7 +151,9 @@ export default function AuthHydrator() {
           : undefined;
 
         if (status === 401 || status === 403) {
-          clearLocalAuthSession();
+          // A failed refresh means the browser currently has no usable backend
+          // session. It is not a logout event and must not clear cookies,
+          // revoke sessions, or emit global logout-style auth events.
           dispatch(hydrateAuth({ user: null, accessToken: null }));
         }
 
@@ -158,6 +176,9 @@ export default function AuthHydrator() {
       .finally(() => {
         hydrationInFlight = false;
       });
+    };
+
+    void runHydration();
 
     return () => {
       cancelled = true;

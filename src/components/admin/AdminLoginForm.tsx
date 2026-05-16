@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useRef, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -30,40 +30,71 @@ interface ApiLoginResponse {
     role: "admin" | "user" | "manager";
   };
   message?: string;
+  retryAfter?: number;
 }
 
 export function AdminLoginForm() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const submitInFlight = useRef(false);
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
   });
 
   function onSubmit(values: Values) {
+    if (submitInFlight.current || pending) {
+      if (process.env.NODE_ENV !== "production") {
+        console.info("auth_login", {
+          event: "duplicate_admin_submit_ignored",
+        });
+      }
+
+      return;
+    }
+
+    submitInFlight.current = true;
     startTransition(async () => {
-      const response = await fetch(`${getApiBaseUrl()}/v1/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(values),
-      });
-      const result = (await response.json()) as ApiLoginResponse;
+      try {
+        const response = await fetch(`${getApiBaseUrl()}/v1/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(values),
+        });
+        const result = (await response.json()) as ApiLoginResponse;
 
-      if (!response.ok || !result.success) {
-        toast.error("Failed: check your credentials");
-        return;
+        if (!response.ok || !result.success) {
+          if (response.status === 429) {
+            toast.error(
+              result.retryAfter
+                ? `Too many login attempts. Try again in ${result.retryAfter} seconds.`
+                : "Too many login attempts. Please wait and try again."
+            );
+            return;
+          }
+
+          if (response.status === 401) {
+            toast.error("Invalid email or password");
+            return;
+          }
+
+          toast.error(result.message ?? "Login failed");
+          return;
+        }
+
+        if (result.user.role !== "admin" && result.user.role !== "manager") {
+          toast.error("Failed: admin access required");
+          return;
+        }
+
+        persistAuthSession(result.accessToken, result.user);
+        toast.success("Success: signed in");
+        router.replace(getRoleHome(result.user.role));
+        router.refresh();
+      } finally {
+        submitInFlight.current = false;
       }
-
-      if (result.user.role !== "admin" && result.user.role !== "manager") {
-        toast.error("Failed: admin access required");
-        return;
-      }
-
-      persistAuthSession(result.accessToken, result.user);
-      toast.success("Success: signed in");
-      router.replace(getRoleHome(result.user.role));
-      router.refresh();
     });
   }
 
@@ -92,7 +123,12 @@ export function AdminLoginForm() {
               <Input type="password" className="pl-9" {...form.register("password")} />
             </div>
           </label>
-          <Button type="submit" loading={pending} fullWidth>
+          <Button
+            type="submit"
+            loading={pending}
+            disabled={submitInFlight.current || pending}
+            fullWidth
+          >
             Sign in
           </Button>
         </form>

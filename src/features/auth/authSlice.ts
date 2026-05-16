@@ -54,6 +54,26 @@ export const login = createAuthThunk(
         err instanceof Error ? err.message : "Login failed"
       );
     }
+  },
+  {
+    condition: (_, { getState }) => {
+      const state = getState() as {
+        auth?: Pick<AuthState, "loading" | "isAuthenticated">;
+      };
+
+      if (state.auth?.loading === true) {
+        if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
+          console.info("auth_login", {
+            event: "duplicate_thunk_ignored",
+            reason: "login_already_pending",
+          });
+        }
+
+        return false;
+      }
+
+      return true;
+    },
   }
 );
 

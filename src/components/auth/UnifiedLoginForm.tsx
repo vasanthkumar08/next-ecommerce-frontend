@@ -4,12 +4,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { LockKeyhole, LogIn, Mail, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { useRef, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { login } from "@/features/auth/authSlice";
-import { useAppDispatch } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { canUseLoginNext, getRoleHome } from "@/lib/auth/roleRedirect";
@@ -26,32 +26,50 @@ export function UnifiedLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
+  const loginLoading = useAppSelector((state) => state.auth.loading);
+  const submitInFlight = useRef(false);
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
 
   function onSubmit(values: LoginValues) {
+    if (submitInFlight.current || loginLoading) {
+      if (process.env.NODE_ENV !== "production") {
+        console.info("auth_login", {
+          event: "duplicate_submit_ignored",
+          reason: submitInFlight.current ? "form_inflight" : "redux_loading",
+        });
+      }
+
+      return;
+    }
+
+    submitInFlight.current = true;
     startTransition(async () => {
-      const result = await dispatch(login(values));
+      try {
+        const result = await dispatch(login(values));
 
-      if (login.rejected.match(result)) {
-        toast.error("Failed");
-        return;
-      }
+        if (login.rejected.match(result)) {
+          toast.error(result.payload ?? "Login failed");
+          return;
+        }
 
-      const { user } = result.payload;
-      toast.success("Success");
+        const { user } = result.payload;
+        toast.success("Success");
 
-      const next = searchParams.get("next");
-      if (next && canUseLoginNext(user.role, next)) {
-        router.replace(next);
+        const next = searchParams.get("next");
+        if (next && canUseLoginNext(user.role, next)) {
+          router.replace(next);
+          router.refresh();
+          return;
+        }
+
+        router.replace(getRoleHome(user.role));
         router.refresh();
-        return;
+      } finally {
+        submitInFlight.current = false;
       }
-
-      router.replace(getRoleHome(user.role));
-      router.refresh();
     });
   }
 
@@ -104,7 +122,8 @@ export function UnifiedLoginForm() {
             </label>
             <Button
               type="submit"
-              loading={pending}
+              loading={pending || loginLoading}
+              disabled={submitInFlight.current || loginLoading}
               fullWidth
               className="h-11 rounded-xl bg-orange-500 font-black shadow-lg shadow-orange-500/20 transition hover:-translate-y-0.5 hover:bg-orange-600 focus-visible:ring-orange-500 active:scale-[0.98]"
             >

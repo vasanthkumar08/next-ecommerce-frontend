@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -24,6 +24,7 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const submitInFlight = useRef(false);
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -33,23 +34,30 @@ export function LoginForm() {
   });
 
   function onSubmit(values: LoginValues) {
+    if (submitInFlight.current || isPending) return;
+
+    submitInFlight.current = true;
     setError(null);
     startTransition(async () => {
-      const result = await signIn("credentials", {
-        email: values.email,
-        password: values.password,
-        redirect: false,
-      });
+      try {
+        const result = await signIn("credentials", {
+          email: values.email,
+          password: values.password,
+          redirect: false,
+        });
 
-      if (result?.error) {
-        setError("Invalid email or password");
-        toast.error("Failed");
-        return;
+        if (result?.error) {
+          setError("Invalid email or password");
+          toast.error("Invalid email or password");
+          return;
+        }
+
+        toast.success("Success");
+        router.push(searchParams.get("callbackUrl") ?? "/admin/dashboard");
+        router.refresh();
+      } finally {
+        submitInFlight.current = false;
       }
-
-      toast.success("Success");
-      router.push(searchParams.get("callbackUrl") ?? "/admin/dashboard");
-      router.refresh();
     });
   }
 
@@ -96,7 +104,12 @@ export function LoginForm() {
               ) : null}
             </label>
             {error ? <p className="text-sm text-[#dc2626]">{error}</p> : null}
-            <Button type="submit" fullWidth loading={isPending}>
+            <Button
+              type="submit"
+              fullWidth
+              loading={isPending}
+              disabled={submitInFlight.current || isPending}
+            >
               Sign in
             </Button>
           </form>

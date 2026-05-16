@@ -31,6 +31,11 @@ export interface AuthResponse {
   csrfToken?: string;
 }
 
+interface ApiErrorBody {
+  message?: string;
+  retryAfter?: number;
+}
+
 export interface RegisterResponse {
   success: boolean;
   message: string;
@@ -48,11 +53,32 @@ export const loginUser = async (
 
     return res.data;
   } catch (error) {
-    if (axios.isAxiosError<{ message?: string }>(error)) {
+    if (axios.isAxiosError<ApiErrorBody>(error)) {
       const status = error.response?.status;
+
+      if (status === 401) {
+        throw new Error("Invalid email or password");
+      }
+
+      if (status === 403) {
+        throw new Error(error.response?.data?.message ?? "Login blocked");
+      }
+
+      if (status === 429) {
+        const retryAfter = error.response?.data?.retryAfter;
+        throw new Error(
+          retryAfter
+            ? `Too many login attempts. Try again in ${retryAfter} seconds.`
+            : "Too many login attempts. Please wait and try again."
+        );
+      }
 
       if (status && ![404, 500, 502, 503, 504].includes(status)) {
         throw new Error(error.response?.data?.message ?? "Login failed");
+      }
+
+      if (error.code === "ERR_NETWORK") {
+        throw new Error("Network or CORS error. Please try again.");
       }
     }
 

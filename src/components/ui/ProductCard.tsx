@@ -13,6 +13,7 @@ import {
   addToWishlist,
   removeWishlistItem,
   removeFromWishlist,
+  selectWishlistIdSet,
 } from "@/features/wishlist/wishlistSlice";
 import { toast as sonnerToast } from "sonner";
 import { countRender } from "@/lib/perf";
@@ -46,9 +47,8 @@ function ProductCard({ product }: ProductCardProps) {
   const authHydrated = useAppSelector((state) => state.auth.hydrated);
   const role = useAppSelector((state) => state.auth.user?.role);
 
-  const isWishlisted = useAppSelector((state) =>
-    state.wishlist.items.some((item) => item.id === product.id)
-  );
+  const wishlistIds = useAppSelector(selectWishlistIdSet);
+  const isWishlisted = wishlistIds.has(product.id);
 
   const handleAddToCart = useCallback(
     async (trigger?: HTMLElement | null) => {

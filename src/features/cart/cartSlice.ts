@@ -8,9 +8,18 @@ export interface CartItem extends Product {
 interface CartState {
   items: CartItem[];
   hydrated: boolean;
+  backendHydrated: boolean;
+  backendHydratedUserId: string | null;
+  backendHydratedAt: number | null;
 }
 
-const initialState: CartState = { items: [], hydrated: false };
+const initialState: CartState = {
+  items: [],
+  hydrated: false,
+  backendHydrated: false,
+  backendHydratedUserId: null,
+  backendHydratedAt: null,
+};
 
 const cartSlice = createSlice({
   name: "cart",
@@ -48,6 +57,23 @@ const cartSlice = createSlice({
       state.items = action.payload ?? [];
       state.hydrated = true;
     },
+
+    hydrateBackendCart: (
+      state,
+      action: PayloadAction<{ items: CartItem[]; userId: string; hydratedAt?: number }>
+    ) => {
+      state.items = action.payload.items;
+      state.hydrated = true;
+      state.backendHydrated = true;
+      state.backendHydratedUserId = action.payload.userId;
+      state.backendHydratedAt = action.payload.hydratedAt ?? Date.now();
+    },
+
+    resetBackendCartHydration: (state) => {
+      state.backendHydrated = false;
+      state.backendHydratedUserId = null;
+      state.backendHydratedAt = null;
+    },
   },
 });
 
@@ -57,5 +83,7 @@ export const {
   decreaseQuantity,
   clearCart,
   hydrateCart,
+  hydrateBackendCart,
+  resetBackendCartHydration,
 } = cartSlice.actions;
 export default cartSlice.reducer;

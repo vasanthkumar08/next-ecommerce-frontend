@@ -5,6 +5,7 @@ import type { CartItem } from "./cartSlice";
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let syncPaused = false;
 let suppressedSnapshotKey: string | null = null;
+let baseProductIds: Set<string> | null = null;
 const objectIdPattern = /^[a-f\d]{24}$/i;
 type BackendProductRef =
   | string
@@ -59,6 +60,8 @@ export async function syncCartToBackendNow(
     const desiredItems = new Map(
       validItems.map((item) => [item.id, item.quantity])
     );
+    const deletableProductIds =
+      baseProductIds ?? new Set([...currentItems.keys()]);
 
     await Promise.all([
       ...validItems.map((item) => {
@@ -83,7 +86,12 @@ export async function syncCartToBackendNow(
         return Promise.resolve();
       }),
       ...[...currentItems.keys()]
-        .filter((productId) => productId && !desiredItems.has(productId))
+        .filter(
+          (productId) =>
+            productId &&
+            !desiredItems.has(productId) &&
+            deletableProductIds.has(productId)
+        )
         .map((productId) =>
           api.delete(`/v1/cart/items/${productId}`, {
             headers,
@@ -91,6 +99,7 @@ export async function syncCartToBackendNow(
         ),
     ]);
 
+    baseProductIds = new Set(validItems.map((item) => item.id));
     return true;
   } catch {
     // Local cart remains available if backend sync is unavailable.
@@ -138,6 +147,12 @@ export function resumeCartSync(): void {
 
 export function suppressNextCartSync(items: CartItem[]): void {
   suppressedSnapshotKey = getSnapshotKey(items);
+}
+
+export function setCartSyncBase(items: CartItem[]): void {
+  baseProductIds = new Set(
+    items.filter((item) => objectIdPattern.test(item.id)).map((item) => item.id)
+  );
 }
 
 export function isCartSyncPaused(): boolean {

@@ -18,6 +18,13 @@ import type { Product } from "@/types/product";
 import { getProductById, getProducts } from "@/features/product/product.api";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { addToCart } from "@/features/cart/cartSlice";
+import {
+  addWishlistItem,
+  addToWishlist,
+  removeWishlistItem,
+  removeFromWishlist,
+  selectWishlistIdSet,
+} from "@/features/wishlist/wishlistSlice";
 import { flyProductImageToCart } from "@/utils/flyToCart";
 import { openCartDrawer } from "@/utils/cartDrawerEvents";
 import {
@@ -52,8 +59,11 @@ export default function ProductDetailsPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const isLoggedIn = useAppSelector((state) => state.auth.isAuthenticated);
+  const authStatus = useAppSelector((state) => state.auth.status);
   const authHydrated = useAppSelector((state) => state.auth.hydrated);
   const user = useAppSelector((state) => state.auth.user);
+  const wishlistIds = useAppSelector(selectWishlistIdSet);
+  const isWishlisted = wishlistIds.has(String(id));
   const [product, setProduct] = useState<Product | null>(null);
   const [related, setRelated] = useState<Product[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -66,30 +76,50 @@ export default function ProductDetailsPage() {
   const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchProduct = async () => {
       try {
         setLoading(true);
         setError(null);
         const data = await getProductById(String(id));
-        const allProducts = await getProducts();
-        const productReviews = await fetchProductReviews(String(id));
+        if (cancelled) return;
+
         setProduct(data);
-        setReviews(productReviews);
-        setRelated(
-          allProducts
-            .filter(
-              (item) => item.category === data.category && item.id !== data.id
-            )
-            .slice(0, 5)
-        );
+        setLoading(false);
+
+        const [productsResult, reviewsResult] = await Promise.allSettled([
+          getProducts(),
+          fetchProductReviews(String(id)),
+        ]);
+
+        if (cancelled) return;
+
+        if (productsResult.status === "fulfilled") {
+          setRelated(
+            productsResult.value
+              .filter(
+                (item) => item.category === data.category && item.id !== data.id
+              )
+              .slice(0, 5)
+          );
+        }
+
+        if (reviewsResult.status === "fulfilled") {
+          setReviews(reviewsResult.value);
+        }
       } catch (err: unknown) {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : "Failed to load product");
-      } finally {
         setLoading(false);
       }
     };
 
     if (id) fetchProduct();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const pricing = useMemo(
@@ -101,13 +131,37 @@ export default function ProductDetailsPage() {
     if (!product) return;
     if (!authHydrated) return;
     if (!isLoggedIn) {
-      router.push(`/login?next=${encodeURIComponent("/cart")}`);
+      router.push(`/login?next=${encodeURIComponent("/shop/cart")}`);
       return;
     }
     await flyProductImageToCart(trigger);
     dispatch(addToCart(product));
     openCartDrawer(product);
   }, [authHydrated, dispatch, isLoggedIn, product, router]);
+
+  const handleWishlist = useCallback(() => {
+    if (!product) return;
+
+    if (authStatus === "loading" || authStatus === "unknown") {
+      return;
+    }
+
+    if (isWishlisted) {
+      if (isLoggedIn) {
+        void dispatch(removeWishlistItem(product.id));
+      } else {
+        dispatch(removeFromWishlist(product.id));
+      }
+      return;
+    }
+
+    if (isLoggedIn) {
+      void dispatch(addWishlistItem(product));
+      return;
+    }
+
+    dispatch(addToWishlist(product));
+  }, [authStatus, dispatch, isLoggedIn, isWishlisted, product]);
 
   const averageRating = useMemo(() => {
     if (reviews.length === 0) return product?.rating.rate ?? 0;
@@ -289,8 +343,16 @@ export default function ProductDetailsPage() {
                 <ShoppingCart className="h-5 w-5" />
                 Add to Cart
               </button>
-              <button className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 font-black text-slate-800 transition hover:-translate-y-0.5 hover:border-[#cc0c39] hover:text-[#cc0c39] active:scale-95">
-                <Heart className="h-5 w-5" />
+              <button
+                type="button"
+                onClick={handleWishlist}
+                className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 font-black text-slate-800 transition hover:-translate-y-0.5 hover:border-[#cc0c39] hover:text-[#cc0c39] active:scale-95"
+              >
+                <Heart
+                  className={`h-5 w-5 ${
+                    isWishlisted ? "fill-[#cc0c39] stroke-[#cc0c39]" : ""
+                  }`}
+                />
                 Wishlist
               </button>
             </div>

@@ -11,6 +11,10 @@ import {
 export default function PersistCart() {
   const items = useAppSelector((state) => state.cart.items);
   const hydrated = useAppSelector((state) => state.cart.hydrated);
+  const backendHydrated = useAppSelector((state) => state.cart.backendHydrated);
+  const backendHydratedUserId = useAppSelector(
+    (state) => state.cart.backendHydratedUserId
+  );
   const userId = useAppSelector((state) => state.auth.user?.id);
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const authStatus = useAppSelector((state) => state.auth.status);
@@ -27,13 +31,27 @@ export default function PersistCart() {
 
     saveCart(items, userId);
 
-    if (isAuthenticated && authStatus === "authenticated") {
+    if (
+      isAuthenticated &&
+      authStatus === "authenticated" &&
+      backendHydrated &&
+      backendHydratedUserId === userId
+    ) {
       if (isCartSyncPaused()) {
         return;
       }
       syncCartToBackend(items, true);
     }
-  }, [authStatus, hydrated, isAuthenticated, items, logoutLoading, userId]);
+  }, [
+    authStatus,
+    backendHydrated,
+    backendHydratedUserId,
+    hydrated,
+    isAuthenticated,
+    items,
+    logoutLoading,
+    userId,
+  ]);
 
   return null;
 }

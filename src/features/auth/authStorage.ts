@@ -3,6 +3,7 @@ import { getApiBaseUrl } from "@/lib/apiUrl";
 import { markPerf, measurePerf } from "@/lib/perf";
 
 export const AUTH_SESSION_EVENT = "vasanthtrends:auth-session";
+export const AUTH_SESSION_STORAGE_KEY = "vasanthtrends:auth-session-event";
 const CSRF_COOKIE_NAME = "csrfToken";
 const CSRF_SESSION_STORAGE_KEY = "vasanthtrends:csrf-token";
 let logoutRequest: Promise<void> | null = null;
@@ -32,6 +33,16 @@ const debugLogout = (event: string, payload: LogoutDebugPayload = {}) => {
 
 const notifyAuthSessionChanged = () => {
   if (!canUseBrowser()) return;
+
+  try {
+    window.localStorage.setItem(
+      AUTH_SESSION_STORAGE_KEY,
+      String(Date.now())
+    );
+  } catch {
+    // Some private browsing modes restrict storage. The same-tab event still
+    // keeps logout deterministic in the active tab.
+  }
 
   window.setTimeout(() => {
     window.dispatchEvent(new Event(AUTH_SESSION_EVENT));

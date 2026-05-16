@@ -10,6 +10,7 @@ import {
 } from "@/lib/axios";
 import {
   AUTH_SESSION_EVENT,
+  AUTH_SESSION_STORAGE_KEY,
   getAuthSessionEpoch,
   getPostLoginRefreshDelayMs,
   hasCompletedLogout,
@@ -23,7 +24,9 @@ import type { AuthResponse } from "@/features/auth/auth.api";
 let appLoadRefreshPromise: Promise<AuthResponse> | null = null;
 
 const getAppLoadRefreshPromise = (): Promise<AuthResponse> => {
-  appLoadRefreshPromise ??= refreshAuthSession();
+  appLoadRefreshPromise ??= refreshAuthSession().finally(() => {
+    appLoadRefreshPromise = null;
+  });
   return appLoadRefreshPromise;
 };
 
@@ -34,7 +37,7 @@ export default function AuthHydrator() {
     let cancelled = false;
     let hydrationInFlight = false;
 
-    const hydrateFromStorage = () => {
+    const clearFromAuthEvent = () => {
       if (process.env.NODE_ENV !== "production") {
         console.info("auth_hydration", {
           event: "local_session_cleared",
@@ -46,15 +49,21 @@ export default function AuthHydrator() {
     };
 
     const apiUrl = getApiBaseUrl();
-    window.addEventListener(AUTH_SESSION_EVENT, hydrateFromStorage);
-    window.addEventListener("storage", hydrateFromStorage);
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === AUTH_SESSION_STORAGE_KEY) {
+        clearFromAuthEvent();
+      }
+    };
+
+    window.addEventListener(AUTH_SESSION_EVENT, clearFromAuthEvent);
+    window.addEventListener("storage", onStorage);
 
     if (!apiUrl) {
-      hydrateFromStorage();
+      clearFromAuthEvent();
       return () => {
         cancelled = true;
-        window.removeEventListener(AUTH_SESSION_EVENT, hydrateFromStorage);
-        window.removeEventListener("storage", hydrateFromStorage);
+        window.removeEventListener(AUTH_SESSION_EVENT, clearFromAuthEvent);
+        window.removeEventListener("storage", onStorage);
       };
     }
 
@@ -66,11 +75,11 @@ export default function AuthHydrator() {
         });
       }
 
-      hydrateFromStorage();
+      clearFromAuthEvent();
       return () => {
         cancelled = true;
-        window.removeEventListener(AUTH_SESSION_EVENT, hydrateFromStorage);
-        window.removeEventListener("storage", hydrateFromStorage);
+        window.removeEventListener(AUTH_SESSION_EVENT, clearFromAuthEvent);
+        window.removeEventListener("storage", onStorage);
       };
     }
 
@@ -215,8 +224,8 @@ export default function AuthHydrator() {
           epoch: getAuthSessionEpoch(),
         });
       }
-      window.removeEventListener(AUTH_SESSION_EVENT, hydrateFromStorage);
-      window.removeEventListener("storage", hydrateFromStorage);
+      window.removeEventListener(AUTH_SESSION_EVENT, clearFromAuthEvent);
+      window.removeEventListener("storage", onStorage);
     };
   }, [dispatch]);
 

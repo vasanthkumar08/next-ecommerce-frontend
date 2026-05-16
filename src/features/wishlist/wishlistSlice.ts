@@ -1,5 +1,11 @@
-import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import {
+  createAsyncThunk,
+  createSelector,
+  createSlice,
+  PayloadAction,
+} from "@reduxjs/toolkit";
 import { Product } from "@/types/product";
+import type { RootState } from "@/store/store";
 import {
   addWishlistProduct,
   fetchWishlist,
@@ -104,4 +110,9 @@ const wishlistSlice = createSlice({
 
 export const { addToWishlist, removeFromWishlist, clearWishlist } =
   wishlistSlice.actions;
+export const selectWishlistItems = (state: RootState) => state.wishlist.items;
+export const selectWishlistIdSet = createSelector(
+  [selectWishlistItems],
+  (items) => new Set(items.map((item) => item.id))
+);
 export default wishlistSlice.reducer;

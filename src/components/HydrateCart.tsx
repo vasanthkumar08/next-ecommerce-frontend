@@ -2,7 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { hydrateCart } from "@/features/cart/cartSlice";
+import {
+  hydrateBackendCart,
+  hydrateCart,
+  resetBackendCartHydration,
+} from "@/features/cart/cartSlice";
 import {
   clearGuestCart,
   loadCart,
@@ -15,6 +19,7 @@ import { fetchBackendCart } from "@/features/cart/cartBackend";
 import {
   pauseCartSync,
   resumeCartSync,
+  setCartSyncBase,
   suppressNextCartSync,
   syncCartToBackendNow,
 } from "@/features/cart/cartSync";
@@ -42,6 +47,8 @@ export default function HydrateCart({
     if (!isAuthenticated || !userId) {
       // Logout should switch the visible cart to the guest cart without
       // deleting or overwriting the authenticated user's backend cart.
+      setCartSyncBase([]);
+      dispatch(resetBackendCartHydration());
       dispatch(hydrateCart(loadCart(null)));
       return;
     }
@@ -54,18 +61,25 @@ export default function HydrateCart({
 
       const localUserCart = loadUserCart(userId);
       const guestCart = loadGuestCart();
+      dispatch(resetBackendCartHydration());
       dispatch(hydrateCart(localUserCart));
 
       try {
         const backendCart = await fetchBackendCart();
         if (cancelled || hydrationRun.current !== runId) return;
+        setCartSyncBase(backendCart);
 
         const mergedCart =
           guestCart.length > 0
             ? mergeCartItems(backendCart, guestCart)
             : backendCart;
 
-        dispatch(hydrateCart(mergedCart));
+        dispatch(
+          hydrateBackendCart({
+            items: mergedCart,
+            userId,
+          })
+        );
         saveCart(mergedCart, userId);
 
         if (guestCart.length > 0) {
@@ -84,6 +98,7 @@ export default function HydrateCart({
           // Keep guest cart if merge failed; it can be retried on the next
           // successful authenticated hydration instead of being lost.
           dispatch(hydrateCart(localUserCart));
+          dispatch(resetBackendCartHydration());
           suppressNextCartSync(localUserCart);
           resumeCartSync();
         }

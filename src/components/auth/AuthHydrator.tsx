@@ -18,6 +18,14 @@ import {
 } from "@/features/auth/authStorage";
 import { useAppDispatch } from "@/store/hooks";
 import { markPerf, measurePerf } from "@/lib/perf";
+import type { AuthResponse } from "@/features/auth/auth.api";
+
+let appLoadRefreshPromise: Promise<AuthResponse> | null = null;
+
+const getAppLoadRefreshPromise = (): Promise<AuthResponse> => {
+  appLoadRefreshPromise ??= refreshAuthSession();
+  return appLoadRefreshPromise;
+};
 
 export default function AuthHydrator() {
   const dispatch = useAppDispatch();
@@ -104,7 +112,7 @@ export default function AuthHydrator() {
         });
       }
 
-      refreshAuthSession()
+      getAppLoadRefreshPromise()
       .then((response) => {
         if (cancelled) return;
         if (hasCompletedLogout() || getAuthSessionEpoch() !== hydrationEpoch) {

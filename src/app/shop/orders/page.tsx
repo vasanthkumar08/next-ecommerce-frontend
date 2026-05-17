@@ -124,7 +124,12 @@ export default function OrdersHistoryPage() {
 
     if (cancelOrderById.fulfilled.match(result)) {
       toast.success("Success");
+      void dispatch(loadOrders(userId));
       return;
+    }
+
+    if (result.payload === "This order is not available for this account") {
+      void dispatch(loadOrders(userId));
     }
 
     toast.error((result.payload as string | undefined) ?? "Could not cancel order");

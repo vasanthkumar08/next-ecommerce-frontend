@@ -230,9 +230,31 @@ const normalizeOrderStatus = (
 };
 
 export const cancelOrder = async (id: string): Promise<{ id: string }> => {
-  const response = await api.delete<{ success: boolean; data?: { id: string } }>(
-    `/v1/orders/${id}`
-  );
+  let response;
+
+  try {
+    response = await api.delete<{ success: boolean; data?: { id: string } }>(
+      `/v1/orders/${id}`
+    );
+  } catch (error) {
+    if (axios.isAxiosError<{ message?: string }>(error)) {
+      const status = error.response?.status;
+
+      if (status === 403) {
+        throw new Error("This order is not available for this account");
+      }
+
+      if (status === 409) {
+        throw new Error(
+          error.response?.data?.message ?? "Order could not be cancelled"
+        );
+      }
+
+      throw new Error(error.response?.data?.message ?? "Could not cancel order");
+    }
+
+    throw error;
+  }
 
   return response.data.data ?? { id };
 };

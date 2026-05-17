@@ -9,9 +9,11 @@ import {
 } from "@/features/cart/cartSlice";
 import {
   clearGuestCart,
+  hasCompletedGuestMerge,
   loadCart,
   loadGuestCart,
   loadUserCart,
+  markGuestMergeCompleted,
   mergeCartItems,
   saveCart,
 } from "@/features/cart/cartPersist";
@@ -62,15 +64,16 @@ export default function HydrateCart({
       const localUserCart = loadUserCart(userId);
       const guestCart = loadGuestCart();
       dispatch(resetBackendCartHydration());
-      dispatch(hydrateCart(localUserCart));
 
       try {
         const backendCart = await fetchBackendCart();
         if (cancelled || hydrationRun.current !== runId) return;
         setCartSyncBase(backendCart);
 
+        const shouldMergeGuest =
+          guestCart.length > 0 && !hasCompletedGuestMerge(userId, guestCart);
         const mergedCart =
-          guestCart.length > 0
+          shouldMergeGuest
             ? mergeCartItems(backendCart, guestCart)
             : backendCart;
 
@@ -82,10 +85,11 @@ export default function HydrateCart({
         );
         saveCart(mergedCart, userId);
 
-        if (guestCart.length > 0) {
+        if (shouldMergeGuest) {
           const synced = await syncCartToBackendNow(mergedCart, true);
 
           if (!cancelled && hydrationRun.current === runId && synced) {
+            markGuestMergeCompleted(userId, guestCart);
             clearGuestCart();
           }
         }

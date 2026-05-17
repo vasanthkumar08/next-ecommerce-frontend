@@ -5,6 +5,12 @@ const objectIdPattern = /^[a-f\d]{24}$/i;
 const getCartKey = (userId?: string | null) =>
   userId ? `cart:${userId}` : "cart:guest";
 
+const getGuestMergeKey = (userId: string, items: CartItem[]) =>
+  `cart:guest-merge:${userId}:${items
+    .map((item) => `${item.id}:${item.quantity}`)
+    .sort()
+    .join("|")}`;
+
 const parseCart = (data: string | null): CartItem[] =>
   data ? (JSON.parse(data) as CartItem[]) : [];
 
@@ -51,6 +57,22 @@ export const loadUserCart = (userId: string): CartItem[] => {
 export const clearGuestCart = (): void => {
   if (typeof window === "undefined") return;
   localStorage.removeItem(getCartKey(null));
+};
+
+export const hasCompletedGuestMerge = (
+  userId: string,
+  items: CartItem[]
+): boolean => {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(getGuestMergeKey(userId, sanitizeCart(items))) === "1";
+};
+
+export const markGuestMergeCompleted = (
+  userId: string,
+  items: CartItem[]
+): void => {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(getGuestMergeKey(userId, sanitizeCart(items)), "1");
 };
 
 export const loadCart = (userId?: string | null): CartItem[] | undefined => {

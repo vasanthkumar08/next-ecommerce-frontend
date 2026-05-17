@@ -116,7 +116,7 @@ export const createOrder = async (
   total: number,
   shippingAddress: ShippingAddress,
   paymentMethod: PaymentMethod,
-  userId = "guest"
+  userId?: string
 ): Promise<Order> => {
   const invalidItem = items.find((item) => !objectIdPattern.test(item.id));
 

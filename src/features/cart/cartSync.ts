@@ -6,6 +6,7 @@ let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let syncPaused = false;
 let suppressedSnapshotKey: string | null = null;
 let baseProductIds: Set<string> | null = null;
+let baseQuantities: Map<string, number> | null = null;
 const objectIdPattern = /^[a-f\d]{24}$/i;
 type BackendProductRef =
   | string
@@ -62,6 +63,7 @@ export async function syncCartToBackendNow(
     );
     const deletableProductIds =
       baseProductIds ?? new Set([...currentItems.keys()]);
+    let conflictSkipped = false;
 
     await Promise.all([
       ...validItems.map((item) => {
@@ -78,6 +80,18 @@ export async function syncCartToBackendNow(
         }
 
         if (existingQuantity !== item.quantity) {
+          const baseQuantity = baseQuantities?.get(item.id);
+
+          if (baseQuantity !== undefined && existingQuantity !== baseQuantity) {
+            conflictSkipped = true;
+            return Promise.resolve();
+          }
+
+          if (baseQuantity === undefined && baseProductIds !== null) {
+            conflictSkipped = true;
+            return Promise.resolve();
+          }
+
           return api.put("/v1/cart/items", payload, {
             headers,
           });
@@ -99,7 +113,23 @@ export async function syncCartToBackendNow(
         ),
     ]);
 
+    if (conflictSkipped) {
+      const refreshedCart = await api.get<BackendCartResponse>("/v1/cart", {
+        headers,
+      });
+      const refreshedItems = new Map(
+        (refreshedCart.data.data?.items ?? []).map((item) => [
+          getBackendProductId(item.product),
+          item.quantity,
+        ])
+      );
+      baseProductIds = new Set([...refreshedItems.keys()]);
+      baseQuantities = refreshedItems;
+      return false;
+    }
+
     baseProductIds = new Set(validItems.map((item) => item.id));
+    baseQuantities = new Map(validItems.map((item) => [item.id, item.quantity]));
     return true;
   } catch {
     // Local cart remains available if backend sync is unavailable.
@@ -150,9 +180,9 @@ export function suppressNextCartSync(items: CartItem[]): void {
 }
 
 export function setCartSyncBase(items: CartItem[]): void {
-  baseProductIds = new Set(
-    items.filter((item) => objectIdPattern.test(item.id)).map((item) => item.id)
-  );
+  const validItems = items.filter((item) => objectIdPattern.test(item.id));
+  baseProductIds = new Set(validItems.map((item) => item.id));
+  baseQuantities = new Map(validItems.map((item) => [item.id, item.quantity]));
 }
 
 export function isCartSyncPaused(): boolean {

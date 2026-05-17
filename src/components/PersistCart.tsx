@@ -29,14 +29,19 @@ export default function PersistCart() {
       return;
     }
 
-    saveCart(items, userId);
-
-    if (
+    const canPersistAuthenticatedCache =
       isAuthenticated &&
       authStatus === "authenticated" &&
       backendHydrated &&
-      backendHydratedUserId === userId
-    ) {
+      backendHydratedUserId === userId;
+
+    if (!isAuthenticated) {
+      saveCart(items, null);
+    } else if (canPersistAuthenticatedCache) {
+      saveCart(items, userId);
+    }
+
+    if (canPersistAuthenticatedCache) {
       if (isCartSyncPaused()) {
         return;
       }

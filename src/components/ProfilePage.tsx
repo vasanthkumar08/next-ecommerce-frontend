@@ -19,34 +19,11 @@ import {
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout } from "@/features/auth/authSlice";
+import { loadOrders } from "@/features/orders/ordersSlice";
 import { countRender, markPerf, measurePerf } from "@/lib/perf";
 
 const avatarUrl =
   "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=500&q=85";
-
-const recentOrders = [
-  {
-    id: "VT-10241",
-    title: "Premium dry fruit gift box",
-    date: "28 Apr 2026",
-    status: "Delivered",
-    total: "₹1,499",
-  },
-  {
-    id: "VT-10202",
-    title: "Wireless headphones",
-    date: "21 Apr 2026",
-    status: "Shipped",
-    total: "₹2,299",
-  },
-  {
-    id: "VT-10188",
-    title: "Kitchen glass container set",
-    date: "16 Apr 2026",
-    status: "Processing",
-    total: "₹899",
-  },
-] as const;
 
 const sidebarLinks = [
   { label: "Profile", href: "/profile", icon: User },
@@ -63,9 +40,11 @@ export default function ProfilePage() {
   const authUser = useAppSelector((state) => state.auth.user);
   const authHydrated = useAppSelector((state) => state.auth.hydrated);
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const authStatus = useAppSelector((state) => state.auth.status);
   const logoutLoading = useAppSelector((state) => state.auth.logoutLoading);
   const wishlistCount = useAppSelector((state) => state.wishlist.items.length);
   const orders = useAppSelector((state) => state.orders.items);
+  const ordersLoading = useAppSelector((state) => state.orders.loading);
 
   const fallbackUser = useMemo(
     () => ({
@@ -95,6 +74,12 @@ export default function ProfilePage() {
     }
   }, [authHydrated, isAuthenticated, router]);
 
+  useEffect(() => {
+    if (authStatus === "authenticated" && authUser?.id) {
+      void dispatch(loadOrders(authUser.id));
+    }
+  }, [authStatus, authUser?.id, dispatch]);
+
   if (!authHydrated || logoutLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-white">
@@ -107,20 +92,23 @@ export default function ProfilePage() {
     return null;
   }
 
+  const recentOrders = orders.slice(0, 3);
+  const totalSpent = orders.reduce((sum, order) => sum + order.total, 0);
+
   const stats = [
     {
       label: "Total Orders",
-      value: Math.max(orders.length, 12).toString(),
+      value: orders.length.toString(),
       icon: ShoppingBag,
     },
     {
       label: "Wishlist Items",
-      value: Math.max(wishlistCount, 8).toString(),
+      value: wishlistCount.toString(),
       icon: Heart,
     },
     {
       label: "Total Spent",
-      value: "₹42,580",
+      value: `₹${totalSpent.toLocaleString("en-IN")}`,
       icon: WalletCards,
     },
   ] as const;
@@ -325,17 +313,25 @@ export default function ProfilePage() {
               </div>
 
               <div className="grid gap-3">
-                {recentOrders.map((order) => (
+                {ordersLoading ? (
+                  <div className="rounded-3xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-500">
+                    Loading your backend order history...
+                  </div>
+                ) : recentOrders.length === 0 ? (
+                  <div className="rounded-3xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-500">
+                    No backend orders yet.
+                  </div>
+                ) : recentOrders.map((order) => (
                   <div
                     key={order.id}
                     className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[1fr_auto] sm:items-center"
                   >
                     <div>
                       <p className="font-black text-slate-950">
-                        {order.title}
+                        {order.items[0]?.title ?? "Order"}
                       </p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">
-                        {order.id} • {order.date}
+                        {order.id} • {new Date(order.createdAt).toLocaleDateString("en-IN")}
                       </p>
                     </div>
                     <div className="flex items-center justify-between gap-4 sm:justify-end">
@@ -343,7 +339,7 @@ export default function ProfilePage() {
                         {order.status}
                       </span>
                       <span className="font-black text-slate-950">
-                        {order.total}
+                        ₹{order.total.toLocaleString("en-IN")}
                       </span>
                     </div>
                   </div>

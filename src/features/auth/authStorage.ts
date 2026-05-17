@@ -6,6 +6,7 @@ export const AUTH_SESSION_EVENT = "vasanthtrends:auth-session";
 export const AUTH_SESSION_STORAGE_KEY = "vasanthtrends:auth-session-event";
 const CSRF_COOKIE_NAME = "csrfToken";
 const CSRF_SESSION_STORAGE_KEY = "vasanthtrends:csrf-token";
+const ACCESS_TOKEN_SESSION_STORAGE_KEY = "vasanthtrends:access-token";
 const AUTH_BROADCAST_CHANNEL = "vasanthtrends:auth";
 let logoutRequest: Promise<void> | null = null;
 let logoutCompleted = false;
@@ -150,9 +151,19 @@ const setStoredCsrfToken = (csrfToken: string | undefined): void => {
   window.sessionStorage.setItem(CSRF_SESSION_STORAGE_KEY, csrfToken);
 };
 
+const setStoredAccessToken = (accessToken: string | undefined): void => {
+  if (!canUseBrowser() || !accessToken) return;
+  window.sessionStorage.setItem(ACCESS_TOKEN_SESSION_STORAGE_KEY, accessToken);
+};
+
 const clearStoredCsrfToken = (): void => {
   if (!canUseBrowser()) return;
   window.sessionStorage.removeItem(CSRF_SESSION_STORAGE_KEY);
+};
+
+const clearStoredAccessToken = (): void => {
+  if (!canUseBrowser()) return;
+  window.sessionStorage.removeItem(ACCESS_TOKEN_SESSION_STORAGE_KEY);
 };
 
 export const getCsrfToken = (): string | null =>
@@ -162,12 +173,14 @@ export const clearLocalAuthSession = () => {
   // Access and refresh tokens are HTTP-only cookies owned by the backend.
   // The client intentionally clears only in-memory state, reducing XSS impact.
   clearStoredCsrfToken();
+  clearStoredAccessToken();
   authSessionEpoch += 1;
   notifyAuthSessionChanged("logout");
 };
 
 export const expireLocalAuthSession = (reason = "refresh_failed"): void => {
   clearStoredCsrfToken();
+  clearStoredAccessToken();
   logoutCompleted = true;
   authSessionEpoch += 1;
   notifyAuthSessionChanged("refresh_failed", reason);
@@ -175,23 +188,27 @@ export const expireLocalAuthSession = (reason = "refresh_failed"): void => {
 
 export const markStaleTabLoggedOut = (reason = "stale_tab"): void => {
   clearStoredCsrfToken();
+  clearStoredAccessToken();
   logoutCompleted = true;
   authSessionEpoch += 1;
   notifyAuthSessionChanged("stale_tab_logout", reason);
 };
 
-export const getStoredAccessToken = (): string | null => null;
+export const getStoredAccessToken = (): string | null => {
+  if (!canUseBrowser()) return null;
+  return window.sessionStorage.getItem(ACCESS_TOKEN_SESSION_STORAGE_KEY);
+};
 export const getStoredUser = (): User | null => null;
 
 export const persistAuthSession = (
-  _accessToken: string,
+  accessToken: string,
   _user: User,
   csrfToken?: string
 ) => {
-  // Tokens are delivered as HTTP-only cookies. Redux receives user data from the
-  // caller; no browser token persistence is needed here. In cross-origin
-  // deployments the csrfToken cookie belongs to the API domain, so the backend
-  // also returns the nonce in JSON for this first-party app to echo in headers.
+  // Cookies remain the preferred credential path. The session-scoped access
+  // token is a fallback for browsers that block third-party API-domain cookies
+  // in the Vercel frontend -> Render backend deployment.
+  setStoredAccessToken(accessToken);
   setStoredCsrfToken(csrfToken);
   logoutCompleted = false;
   lastAuthSuccessAt = Date.now();

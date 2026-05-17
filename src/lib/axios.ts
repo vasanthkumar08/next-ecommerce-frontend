@@ -4,6 +4,7 @@ import {
   expireLocalAuthSession,
   getCsrfToken,
   getAuthSessionEpoch,
+  getStoredAccessToken,
   persistAuthSession,
 } from "@/features/auth/authStorage";
 import type { AuthResponse } from "@/features/auth/auth.api";
@@ -187,9 +188,14 @@ export const refreshAuthSession = async () => {
 
 api.interceptors.request.use((config) => {
   const csrfToken = getCsrfToken();
+  const accessToken = getStoredAccessToken();
 
   if (csrfToken) {
     config.headers["X-CSRF-Token"] = csrfToken;
+  }
+
+  if (accessToken && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
   }
 
   return config;

@@ -6,6 +6,7 @@ export const AUTH_SESSION_EVENT = "vasanthtrends:auth-session";
 export const AUTH_SESSION_STORAGE_KEY = "vasanthtrends:auth-session-event";
 const CSRF_COOKIE_NAME = "csrfToken";
 const CSRF_SESSION_STORAGE_KEY = "vasanthtrends:csrf-token";
+const CSRF_LOCAL_STORAGE_KEY = "vasanthtrends:csrf-token:persistent";
 const ACCESS_TOKEN_SESSION_STORAGE_KEY = "vasanthtrends:access-token";
 const ACCESS_TOKEN_LOCAL_STORAGE_KEY = "vasanthtrends:access-token:persistent";
 const REFRESH_TOKEN_LOCAL_STORAGE_KEY = "vasanthtrends:refresh-token";
@@ -149,12 +150,16 @@ export const getCookieValue = (name: string): string | null => {
 
 const getStoredCsrfToken = (): string | null => {
   if (!canUseBrowser()) return null;
-  return window.sessionStorage.getItem(CSRF_SESSION_STORAGE_KEY);
+  return (
+    window.sessionStorage.getItem(CSRF_SESSION_STORAGE_KEY) ??
+    window.localStorage.getItem(CSRF_LOCAL_STORAGE_KEY)
+  );
 };
 
 const setStoredCsrfToken = (csrfToken: string | undefined): void => {
   if (!canUseBrowser() || !csrfToken) return;
   window.sessionStorage.setItem(CSRF_SESSION_STORAGE_KEY, csrfToken);
+  window.localStorage.setItem(CSRF_LOCAL_STORAGE_KEY, csrfToken);
 };
 
 const setStoredAccessToken = (accessToken: string | undefined): void => {
@@ -171,6 +176,7 @@ const setStoredRefreshToken = (refreshToken: string | undefined): void => {
 const clearStoredCsrfToken = (): void => {
   if (!canUseBrowser()) return;
   window.sessionStorage.removeItem(CSRF_SESSION_STORAGE_KEY);
+  window.localStorage.removeItem(CSRF_LOCAL_STORAGE_KEY);
 };
 
 const clearStoredAccessToken = (): void => {
@@ -303,6 +309,7 @@ export const getStoredUser = (): User | null => {
         name: parsed.name,
         email: parsed.email,
         role: parsed.role,
+        phone: typeof parsed.phone === "string" ? parsed.phone : undefined,
       };
     }
   } catch {

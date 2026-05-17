@@ -77,14 +77,9 @@ export default function ProfilePage() {
     []
   );
 
-  const [name, setName] = useState(authUser?.name ?? fallbackUser.name);
+  const [nameOverride, setNameOverride] = useState<string | null>(null);
   const [phone, setPhone] = useState(fallbackUser.phone);
-
-  useEffect(() => {
-    if (authUser?.name) {
-      setName(authUser.name);
-    }
-  }, [authUser?.name]);
+  const name = nameOverride ?? authUser?.name ?? fallbackUser.name;
 
   useEffect(() => {
     if (authHydrated && !isAuthenticated) {
@@ -256,7 +251,7 @@ export default function ProfilePage() {
                     Name
                     <input
                       value={name}
-                      onChange={(event) => setName(event.target.value)}
+                      onChange={(event) => setNameOverride(event.target.value)}
                       className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-[#ff6700] focus:ring-2 focus:ring-orange-500/15"
                     />
                   </label>

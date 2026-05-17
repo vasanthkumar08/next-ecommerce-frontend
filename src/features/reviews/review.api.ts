@@ -1,10 +1,13 @@
 import api from "@/lib/axios";
-import {
-  createMockReview,
-  getMockReviews,
-  type MockReviewInput,
-} from "@/services/mockDatabase";
 import type { Review } from "@/types/review";
+
+export interface ProductReviewInput {
+  productId: string;
+  userId?: string;
+  userName?: string;
+  rating: number;
+  comment: string;
+}
 
 interface ReviewsResponse {
   success: boolean;
@@ -82,16 +85,12 @@ const normalizeReview = (response: ReviewResponse): Review => {
 };
 
 export async function fetchProductReviews(productId: string): Promise<Review[]> {
-  try {
-    const response = await api.get<ReviewsResponse>(`/v1/reviews/${productId}`);
-    return normalizeReviewList(response.data);
-  } catch {
-    return getMockReviews(productId);
-  }
+  const response = await api.get<ReviewsResponse>(`/v1/reviews/${productId}`);
+  return normalizeReviewList(response.data);
 }
 
 export async function submitProductReview(
-  input: MockReviewInput
+  input: ProductReviewInput
 ): Promise<Review> {
   if (!input.comment.trim()) {
     throw new Error("Review comment is required");
@@ -101,17 +100,13 @@ export async function submitProductReview(
     throw new Error("Rating must be between 1 and 5");
   }
 
-  try {
-    const response = await api.post<ReviewResponse>(
-      "/v1/reviews",
-      {
-        productId: input.productId,
-        rating: input.rating,
-        comment: input.comment,
-      }
-    );
-    return normalizeReview(response.data);
-  } catch {
-    return createMockReview(input);
-  }
+  const response = await api.post<ReviewResponse>(
+    "/v1/reviews",
+    {
+      productId: input.productId,
+      rating: input.rating,
+      comment: input.comment,
+    }
+  );
+  return normalizeReview(response.data);
 }

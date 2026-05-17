@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -24,7 +24,7 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const submitInFlight = useRef(false);
+  const [submitInFlight, setSubmitInFlight] = useState(false);
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -33,10 +33,10 @@ export function LoginForm() {
     },
   });
 
-  function onSubmit(values: LoginValues) {
-    if (submitInFlight.current || isPending) return;
+  const onSubmit = useCallback((values: LoginValues) => {
+    if (submitInFlight || isPending) return;
 
-    submitInFlight.current = true;
+    setSubmitInFlight(true);
     setError(null);
     startTransition(async () => {
       try {
@@ -56,10 +56,17 @@ export function LoginForm() {
         router.push(searchParams.get("callbackUrl") ?? "/admin/dashboard");
         router.refresh();
       } finally {
-        submitInFlight.current = false;
+        setSubmitInFlight(false);
       }
     });
-  }
+  }, [isPending, router, searchParams, startTransition, submitInFlight]);
+
+  const handleFormSubmit = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      void form.handleSubmit(onSubmit)(event);
+    },
+    [form, onSubmit]
+  );
 
   return (
     <main className="grid min-h-screen place-items-center bg-white p-6">
@@ -74,7 +81,7 @@ export function LoginForm() {
           </p>
         </CardHeader>
         <CardContent>
-          <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+          <form className="space-y-4" onSubmit={handleFormSubmit}>
             <label className="block space-y-2">
               <span className="text-sm font-medium">Email</span>
               <div className="relative">
@@ -108,7 +115,7 @@ export function LoginForm() {
               type="submit"
               fullWidth
               loading={isPending}
-              disabled={submitInFlight.current || isPending}
+              disabled={submitInFlight || isPending}
             >
               Sign in
             </Button>

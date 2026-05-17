@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { LockKeyhole, LogIn, Mail, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useRef, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -27,25 +27,25 @@ export function UnifiedLoginForm() {
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
   const loginLoading = useAppSelector((state) => state.auth.loading);
-  const submitInFlight = useRef(false);
+  const [submitInFlight, setSubmitInFlight] = useState(false);
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
 
-  function onSubmit(values: LoginValues) {
-    if (submitInFlight.current || loginLoading) {
+  const onSubmit = useCallback((values: LoginValues) => {
+    if (submitInFlight || loginLoading) {
       if (process.env.NODE_ENV !== "production") {
         console.info("auth_login", {
           event: "duplicate_submit_ignored",
-          reason: submitInFlight.current ? "form_inflight" : "redux_loading",
+          reason: submitInFlight ? "form_inflight" : "redux_loading",
         });
       }
 
       return;
     }
 
-    submitInFlight.current = true;
+    setSubmitInFlight(true);
     startTransition(async () => {
       try {
         const result = await dispatch(login(values));
@@ -68,10 +68,17 @@ export function UnifiedLoginForm() {
         router.replace(getRoleHome(user.role));
         router.refresh();
       } finally {
-        submitInFlight.current = false;
+        setSubmitInFlight(false);
       }
     });
-  }
+  }, [dispatch, loginLoading, router, searchParams, startTransition, submitInFlight]);
+
+  const handleFormSubmit = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      void form.handleSubmit(onSubmit)(event);
+    },
+    [form, onSubmit]
+  );
 
   return (
     <main className="grid min-h-screen place-items-center bg-[#fff7ed] p-6">
@@ -86,7 +93,7 @@ export function UnifiedLoginForm() {
           </p>
         </div>
 
-        <form className="mt-8 space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
+        <form className="mt-8 space-y-5" onSubmit={handleFormSubmit}>
             <label className="block space-y-2">
               <span className="text-sm font-bold text-slate-800">Email</span>
               <div className="relative">
@@ -123,7 +130,7 @@ export function UnifiedLoginForm() {
             <Button
               type="submit"
               loading={pending || loginLoading}
-              disabled={submitInFlight.current || loginLoading}
+              disabled={submitInFlight || loginLoading}
               fullWidth
               className="h-11 rounded-xl bg-orange-500 font-black shadow-lg shadow-orange-500/20 transition hover:-translate-y-0.5 hover:bg-orange-600 focus-visible:ring-orange-500 active:scale-[0.98]"
             >

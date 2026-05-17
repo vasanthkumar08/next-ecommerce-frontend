@@ -69,7 +69,6 @@ export default function ProductsClient({
   useEffect(() => {
     setCategory(searchParams.get("cat")?.trim() || "all");
     setSearch(searchParams.get("q")?.trim() || "");
-    setSort(getSortValue(searchParams.get("sort")));
   }, [searchParams, setCategory, setSearch]);
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);

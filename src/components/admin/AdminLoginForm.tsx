@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -36,14 +36,14 @@ interface ApiLoginResponse {
 export function AdminLoginForm() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const submitInFlight = useRef(false);
+  const [submitInFlight, setSubmitInFlight] = useState(false);
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
   });
 
-  function onSubmit(values: Values) {
-    if (submitInFlight.current || pending) {
+  const onSubmit = useCallback((values: Values) => {
+    if (submitInFlight || pending) {
       if (process.env.NODE_ENV !== "production") {
         console.info("auth_login", {
           event: "duplicate_admin_submit_ignored",
@@ -53,7 +53,7 @@ export function AdminLoginForm() {
       return;
     }
 
-    submitInFlight.current = true;
+    setSubmitInFlight(true);
     startTransition(async () => {
       try {
         const response = await fetch(`${getApiBaseUrl()}/v1/auth/login`, {
@@ -93,10 +93,17 @@ export function AdminLoginForm() {
         router.replace(getRoleHome(result.user.role));
         router.refresh();
       } finally {
-        submitInFlight.current = false;
+        setSubmitInFlight(false);
       }
     });
-  }
+  }, [pending, router, startTransition, submitInFlight]);
+
+  const handleFormSubmit = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      void form.handleSubmit(onSubmit)(event);
+    },
+    [form, onSubmit]
+  );
 
   return (
     <main className="grid min-h-screen place-items-center bg-[#F8FAFC] p-6">
@@ -108,7 +115,7 @@ export function AdminLoginForm() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-950">Admin login</h1>
           <p className="mt-2 text-sm text-slate-500">JWT-protected admin workspace</p>
         </div>
-        <form className="mt-6 space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+        <form className="mt-6 space-y-4" onSubmit={handleFormSubmit}>
           <label className="block space-y-2">
             <span className="text-sm font-semibold text-slate-700">Email</span>
             <div className="relative">
@@ -126,7 +133,7 @@ export function AdminLoginForm() {
           <Button
             type="submit"
             loading={pending}
-            disabled={submitInFlight.current || pending}
+            disabled={submitInFlight || pending}
             fullWidth
           >
             Sign in

@@ -19,6 +19,7 @@ import {
   setCartSyncBase,
   suppressNextCartSync,
 } from "@/features/cart/cartSync";
+import { captureFrontendException, captureFrontendMessage } from "@/lib/observability";
 
 export const CART_HYDRATION_RETRY_EVENT = "vasanthtrends:cart-hydration-retry";
 
@@ -70,24 +71,34 @@ export default function HydrateCart({
       try {
         const backendCart = await fetchBackendCart();
         if (cancelled || hydrationRun.current !== runId) return;
-        setCartSyncBase(backendCart);
+        setCartSyncBase(backendCart.items, backendCart.revision);
+        captureFrontendMessage("cart_hydration_success", {
+          userId,
+          revision: backendCart.revision,
+        });
 
         dispatch(
           hydrateBackendCart({
-            items: backendCart,
+            items: backendCart.items,
             userId,
+            revision: backendCart.revision,
+            updatedAt: backendCart.updatedAt,
           })
         );
-        saveCart(backendCart, userId);
+        saveCart(backendCart.items, userId);
 
         if (!cancelled && hydrationRun.current === runId) {
           resumeCartSync();
         }
-      } catch {
+      } catch (error) {
         if (!cancelled && hydrationRun.current === runId) {
           // Do not hydrate a stale authenticated local cart or sync anything
           // to the backend when the canonical backend cart could not load.
           dispatch(markBackendCartHydrationFailed());
+          captureFrontendException(error, {
+            area: "cart_hydration",
+            userId,
+          });
           suppressNextCartSync([]);
           resumeCartSync();
         }

@@ -11,6 +11,8 @@ interface CartState {
   backendHydrated: boolean;
   backendHydratedUserId: string | null;
   backendHydratedAt: number | null;
+  backendRevision: number | null;
+  backendUpdatedAt: string | null;
   backendHydrationError: string | null;
 }
 
@@ -20,6 +22,8 @@ const initialState: CartState = {
   backendHydrated: false,
   backendHydratedUserId: null,
   backendHydratedAt: null,
+  backendRevision: null,
+  backendUpdatedAt: null,
   backendHydrationError: null,
 };
 
@@ -62,13 +66,21 @@ const cartSlice = createSlice({
 
     hydrateBackendCart: (
       state,
-      action: PayloadAction<{ items: CartItem[]; userId: string; hydratedAt?: number }>
+      action: PayloadAction<{
+        items: CartItem[];
+        userId: string;
+        hydratedAt?: number;
+        revision?: number | null;
+        updatedAt?: string | null;
+      }>
     ) => {
       state.items = action.payload.items;
       state.hydrated = true;
       state.backendHydrated = true;
       state.backendHydratedUserId = action.payload.userId;
       state.backendHydratedAt = action.payload.hydratedAt ?? Date.now();
+      state.backendRevision = action.payload.revision ?? null;
+      state.backendUpdatedAt = action.payload.updatedAt ?? null;
       state.backendHydrationError = null;
     },
 
@@ -76,6 +88,8 @@ const cartSlice = createSlice({
       state.backendHydrated = false;
       state.backendHydratedUserId = null;
       state.backendHydratedAt = null;
+      state.backendRevision = null;
+      state.backendUpdatedAt = null;
       state.backendHydrationError = null;
     },
 
@@ -86,6 +100,8 @@ const cartSlice = createSlice({
       state.backendHydrated = false;
       state.backendHydratedUserId = null;
       state.backendHydratedAt = null;
+      state.backendRevision = null;
+      state.backendUpdatedAt = null;
       state.backendHydrationError =
         action.payload ?? "Backend cart could not be loaded";
     },
@@ -94,6 +110,8 @@ const cartSlice = createSlice({
       state.backendHydrated = false;
       state.backendHydratedUserId = null;
       state.backendHydratedAt = null;
+      state.backendRevision = null;
+      state.backendUpdatedAt = null;
       state.backendHydrationError = null;
     },
   },

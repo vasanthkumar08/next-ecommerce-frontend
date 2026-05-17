@@ -23,7 +23,15 @@ type BackendProductRef =
 interface BackendCartResponse {
   data?: {
     items?: BackendCartItem[];
+    revision?: number;
+    updatedAt?: string;
   };
+}
+
+export interface BackendCartState {
+  items: CartItem[];
+  revision: number;
+  updatedAt: string | null;
 }
 
 const objectIdPattern = /^[a-f\d]{24}$/i;
@@ -69,9 +77,14 @@ const toCartItem = (item: BackendCartItem): CartItem | null => {
   };
 };
 
-export const fetchBackendCart = async (): Promise<CartItem[]> => {
+export const fetchBackendCart = async (): Promise<BackendCartState> => {
   const response = await api.get<BackendCartResponse>("/v1/cart");
-  return (response.data.data?.items ?? [])
-    .map(toCartItem)
-    .filter((item): item is CartItem => Boolean(item));
+  const data = response.data.data;
+  return {
+    items: (data?.items ?? [])
+      .map(toCartItem)
+      .filter((item): item is CartItem => Boolean(item)),
+    revision: data?.revision ?? 0,
+    updatedAt: data?.updatedAt ?? null,
+  };
 };

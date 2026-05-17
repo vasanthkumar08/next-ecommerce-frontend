@@ -7,7 +7,9 @@ let syncPaused = false;
 let suppressedSnapshotKey: string | null = null;
 let baseProductIds: Set<string> | null = null;
 let baseQuantities: Map<string, number> | null = null;
+let baseRevision: number | null = null;
 const objectIdPattern = /^[a-f\d]{24}$/i;
+const cartHydrationRetryEvent = "vasanthtrends:cart-hydration-retry";
 type BackendProductRef =
   | string
   | {
@@ -17,6 +19,8 @@ type BackendProductRef =
 
 interface BackendCartResponse {
   data?: {
+    revision?: number;
+    updatedAt?: string;
     items?: Array<{
       product: BackendProductRef;
       quantity: number;
@@ -36,6 +40,25 @@ const getSnapshotKey = (items: CartItem[]): string =>
     .sort()
     .join("|");
 
+const isCartVersionConflict = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const maybeError = error as {
+    response?: { status?: number; data?: { code?: string; error?: { code?: string } } };
+  };
+
+  return (
+    maybeError.response?.status === 409 &&
+    (maybeError.response?.data?.code === "CART_VERSION_CONFLICT" ||
+      maybeError.response?.data?.error?.code === "CART_VERSION_CONFLICT")
+  );
+};
+
+const requestCanonicalCartHydration = () => {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(cartHydrationRetryEvent));
+  }
+};
+
 export async function syncCartToBackendNow(
   items: CartItem[],
   isAuthenticated: boolean
@@ -52,6 +75,23 @@ export async function syncCartToBackendNow(
     const currentCart = await api.get<BackendCartResponse>("/v1/cart", {
       headers,
     });
+    const currentRevision = currentCart.data.data?.revision ?? 0;
+
+    if (baseRevision !== null && currentRevision !== baseRevision) {
+      const refreshedItems = new Map(
+        (currentCart.data.data?.items ?? []).map((item) => [
+          getBackendProductId(item.product),
+          item.quantity,
+        ])
+      );
+      baseProductIds = new Set([...refreshedItems.keys()]);
+      baseQuantities = refreshedItems;
+      baseRevision = currentRevision;
+      requestCanonicalCartHydration();
+      return false;
+    }
+
+    let nextRevision = currentRevision;
     const currentItems = new Map(
       (currentCart.data.data?.items ?? []).map((item) => [
         getBackendProductId(item.product),
@@ -65,18 +105,20 @@ export async function syncCartToBackendNow(
       baseProductIds ?? new Set([...currentItems.keys()]);
     let conflictSkipped = false;
 
-    await Promise.all([
-      ...validItems.map((item) => {
+    for (const item of validItems) {
         const payload = {
           productId: item.id,
           quantity: item.quantity,
+          revision: nextRevision,
         };
         const existingQuantity = currentItems.get(item.id);
 
         if (existingQuantity === undefined) {
-          return api.post("/v1/cart/items", payload, {
-            headers,
+          const response = await api.post<BackendCartResponse>("/v1/cart/items", payload, {
+            headers: { ...headers, "If-Match": String(nextRevision) },
           });
+          nextRevision = response.data.data?.revision ?? nextRevision + 1;
+          continue;
         }
 
         if (existingQuantity !== item.quantity) {
@@ -84,34 +126,37 @@ export async function syncCartToBackendNow(
 
           if (baseQuantity !== undefined && existingQuantity !== baseQuantity) {
             conflictSkipped = true;
-            return Promise.resolve();
+            continue;
           }
 
           if (baseQuantity === undefined && baseProductIds !== null) {
             conflictSkipped = true;
-            return Promise.resolve();
+            continue;
           }
 
-          return api.put("/v1/cart/items", payload, {
-            headers,
+          const response = await api.put<BackendCartResponse>("/v1/cart/items", payload, {
+            headers: { ...headers, "If-Match": String(nextRevision) },
           });
+          nextRevision = response.data.data?.revision ?? nextRevision + 1;
         }
+    }
 
-        return Promise.resolve();
-      }),
-      ...[...currentItems.keys()]
+    for (const productId of [...currentItems.keys()]
         .filter(
           (productId) =>
             productId &&
             !desiredItems.has(productId) &&
             deletableProductIds.has(productId)
-        )
-        .map((productId) =>
-          api.delete(`/v1/cart/items/${productId}`, {
-            headers,
-          })
-        ),
-    ]);
+        )) {
+      const response = await api.delete<BackendCartResponse>(
+        `/v1/cart/items/${productId}`,
+        {
+          headers: { ...headers, "If-Match": String(nextRevision) },
+          data: { revision: nextRevision },
+        }
+      );
+      nextRevision = response.data.data?.revision ?? nextRevision + 1;
+    }
 
     if (conflictSkipped) {
       const refreshedCart = await api.get<BackendCartResponse>("/v1/cart", {
@@ -125,13 +170,19 @@ export async function syncCartToBackendNow(
       );
       baseProductIds = new Set([...refreshedItems.keys()]);
       baseQuantities = refreshedItems;
+      baseRevision = refreshedCart.data.data?.revision ?? null;
+      requestCanonicalCartHydration();
       return false;
     }
 
     baseProductIds = new Set(validItems.map((item) => item.id));
     baseQuantities = new Map(validItems.map((item) => [item.id, item.quantity]));
+    baseRevision = nextRevision;
     return true;
-  } catch {
+  } catch (error) {
+    if (isCartVersionConflict(error)) {
+      requestCanonicalCartHydration();
+    }
     // Local cart remains available if backend sync is unavailable.
     return false;
   }
@@ -179,10 +230,11 @@ export function suppressNextCartSync(items: CartItem[]): void {
   suppressedSnapshotKey = getSnapshotKey(items);
 }
 
-export function setCartSyncBase(items: CartItem[]): void {
+export function setCartSyncBase(items: CartItem[], revision: number | null = null): void {
   const validItems = items.filter((item) => objectIdPattern.test(item.id));
   baseProductIds = new Set(validItems.map((item) => item.id));
   baseQuantities = new Map(validItems.map((item) => [item.id, item.quantity]));
+  baseRevision = revision;
 }
 
 export function isCartSyncPaused(): boolean {

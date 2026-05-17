@@ -5,6 +5,7 @@ import {
   persistAuthSession,
 } from "@/features/auth/authStorage";
 import type { AuthResponse } from "@/features/auth/auth.api";
+import { captureFrontendException, captureFrontendMessage } from "@/lib/observability";
 
 const api = axios.create({
   baseURL: getApiBaseUrl(),
@@ -90,6 +91,9 @@ export const refreshAuthSession = async () => {
           status: axios.isAxiosError(error) ? error.response?.status ?? null : null,
         });
       }
+      captureFrontendMessage("auth_refresh_retry_scheduled", {
+        status: axios.isAxiosError(error) ? error.response?.status ?? null : null,
+      });
 
       await sleep(700);
       return postRefresh(apiUrl);
@@ -101,6 +105,9 @@ export const refreshAuthSession = async () => {
           hasCsrfToken: Boolean(session.csrfToken),
         });
       }
+      captureFrontendMessage("auth_refresh_success", {
+        hasCsrfToken: Boolean(session.csrfToken),
+      });
 
       return session;
     })
@@ -111,6 +118,10 @@ export const refreshAuthSession = async () => {
           status: axios.isAxiosError(error) ? error.response?.status ?? null : null,
         });
       }
+      captureFrontendException(error, {
+        area: "auth_refresh",
+        status: axios.isAxiosError(error) ? error.response?.status ?? null : null,
+      });
 
       throw error;
     })

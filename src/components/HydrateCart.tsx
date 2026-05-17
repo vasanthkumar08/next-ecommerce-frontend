@@ -23,7 +23,7 @@ import {
 import { captureFrontendException, captureFrontendMessage } from "@/lib/observability";
 
 export const CART_HYDRATION_RETRY_EVENT = "vasanthtrends:cart-hydration-retry";
-const cartRefreshIntervalMs = 1_500;
+const cartRefreshIntervalMs = 500;
 
 export default function HydrateCart({
   children,

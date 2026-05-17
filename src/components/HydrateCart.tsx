@@ -37,7 +37,12 @@ export default function HydrateCart({
   const backendRevision = useAppSelector((state) => state.cart.backendRevision);
   const hydrationRun = useRef(0);
   const hydrationFetchInFlight = useRef(false);
+  const backendRevisionRef = useRef<number | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
+
+  useEffect(() => {
+    backendRevisionRef.current = backendRevision;
+  }, [backendRevision]);
 
   useEffect(() => {
     const onRetry = () => setRetryNonce((value) => value + 1);
@@ -91,12 +96,13 @@ export default function HydrateCart({
         if (
           reason !== "initial" &&
           backendCart.revision !== null &&
-          backendCart.revision === backendRevision
+          backendCart.revision === backendRevisionRef.current
         ) {
           resumeCartSync();
           return;
         }
 
+        backendRevisionRef.current = backendCart.revision;
         setCartSyncBase(backendCart.items, backendCart.revision);
         suppressNextCartSync(backendCart.items);
         captureFrontendMessage("cart_hydration_success", {
@@ -159,7 +165,7 @@ export default function HydrateCart({
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [authStatus, backendRevision, dispatch, isAuthenticated, retryNonce, userId]);
+  }, [authStatus, dispatch, isAuthenticated, retryNonce, userId]);
 
   return <>{children}</>;
 }

@@ -6,12 +6,26 @@ export const AUTH_SESSION_EVENT = "vasanthtrends:auth-session";
 export const AUTH_SESSION_STORAGE_KEY = "vasanthtrends:auth-session-event";
 const CSRF_COOKIE_NAME = "csrfToken";
 const CSRF_SESSION_STORAGE_KEY = "vasanthtrends:csrf-token";
+const AUTH_BROADCAST_CHANNEL = "vasanthtrends:auth";
 let logoutRequest: Promise<void> | null = null;
 let logoutCompleted = false;
 let authSessionEpoch = 0;
 let lastAuthSuccessAt = 0;
 const postLoginRefreshDelayMs = 900;
 const postLoginRefreshSkipMs = 2_000;
+
+export type AuthSessionEventType =
+  | "session_updated"
+  | "logout"
+  | "refresh_failed"
+  | "stale_tab_logout";
+
+export interface AuthSessionEventPayload {
+  type: AuthSessionEventType;
+  epoch: number;
+  reason?: string;
+  timestamp: number;
+}
 
 const canUseBrowser = () => typeof window !== "undefined";
 
@@ -31,22 +45,87 @@ const debugLogout = (event: string, payload: LogoutDebugPayload = {}) => {
   });
 };
 
-const notifyAuthSessionChanged = () => {
+const createAuthSessionEvent = (
+  type: AuthSessionEventType,
+  reason?: string
+): AuthSessionEventPayload => ({
+  type,
+  epoch: authSessionEpoch,
+  reason,
+  timestamp: Date.now(),
+});
+
+const notifyAuthSessionChanged = (
+  type: AuthSessionEventType,
+  reason?: string
+) => {
   if (!canUseBrowser()) return;
 
+  const event = createAuthSessionEvent(type, reason);
+
   try {
-    window.localStorage.setItem(
-      AUTH_SESSION_STORAGE_KEY,
-      String(Date.now())
-    );
+    window.localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(event));
   } catch {
     // Some private browsing modes restrict storage. The same-tab event still
     // keeps logout deterministic in the active tab.
   }
 
+  try {
+    const channel = new BroadcastChannel(AUTH_BROADCAST_CHANNEL);
+    channel.postMessage(event);
+    channel.close();
+  } catch {
+    // BroadcastChannel is unavailable in older/private browser modes; storage
+    // and same-tab CustomEvent remain the compatibility path.
+  }
+
   window.setTimeout(() => {
-    window.dispatchEvent(new Event(AUTH_SESSION_EVENT));
+    window.dispatchEvent(
+      new CustomEvent<AuthSessionEventPayload>(AUTH_SESSION_EVENT, {
+        detail: event,
+      })
+    );
   }, 0);
+};
+
+export const parseAuthSessionEvent = (
+  raw: string | null
+): AuthSessionEventPayload | null => {
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<AuthSessionEventPayload>;
+
+    if (
+      (parsed.type === "session_updated" ||
+        parsed.type === "logout" ||
+        parsed.type === "refresh_failed" ||
+        parsed.type === "stale_tab_logout") &&
+      typeof parsed.timestamp === "number"
+    ) {
+      return {
+        type: parsed.type,
+        epoch:
+          typeof parsed.epoch === "number" ? parsed.epoch : authSessionEpoch,
+        reason: typeof parsed.reason === "string" ? parsed.reason : undefined,
+        timestamp: parsed.timestamp,
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+};
+
+export const createAuthBroadcastChannel = (): BroadcastChannel | null => {
+  if (!canUseBrowser()) return null;
+
+  try {
+    return new BroadcastChannel(AUTH_BROADCAST_CHANNEL);
+  } catch {
+    return null;
+  }
 };
 
 export const getCookieValue = (name: string): string | null => {
@@ -84,7 +163,21 @@ export const clearLocalAuthSession = () => {
   // The client intentionally clears only in-memory state, reducing XSS impact.
   clearStoredCsrfToken();
   authSessionEpoch += 1;
-  notifyAuthSessionChanged();
+  notifyAuthSessionChanged("logout");
+};
+
+export const expireLocalAuthSession = (reason = "refresh_failed"): void => {
+  clearStoredCsrfToken();
+  logoutCompleted = true;
+  authSessionEpoch += 1;
+  notifyAuthSessionChanged("refresh_failed", reason);
+};
+
+export const markStaleTabLoggedOut = (reason = "stale_tab"): void => {
+  clearStoredCsrfToken();
+  logoutCompleted = true;
+  authSessionEpoch += 1;
+  notifyAuthSessionChanged("stale_tab_logout", reason);
 };
 
 export const getStoredAccessToken = (): string | null => null;
@@ -103,6 +196,7 @@ export const persistAuthSession = (
   logoutCompleted = false;
   lastAuthSuccessAt = Date.now();
   authSessionEpoch += 1;
+  notifyAuthSessionChanged("session_updated");
 };
 
 export const getAuthSessionEpoch = (): number => authSessionEpoch;

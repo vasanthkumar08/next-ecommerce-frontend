@@ -1,7 +1,9 @@
 import axios from "axios";
 import { getApiBaseUrl } from "@/lib/apiUrl";
 import {
+  expireLocalAuthSession,
   getCsrfToken,
+  getAuthSessionEpoch,
   persistAuthSession,
 } from "@/features/auth/authStorage";
 import type { AuthResponse } from "@/features/auth/auth.api";
@@ -17,6 +19,11 @@ const api = axios.create({
 });
 
 let refreshPromise: Promise<AuthResponse> | null = null;
+let refreshCircuitOpenUntil = 0;
+let consecutiveRefreshFailures = 0;
+const refreshCooldownMs = 4_000;
+const refreshCircuitBreakerThreshold = 2;
+const refreshCircuitBreakerMs = 15_000;
 
 type ApiErrorBody = {
   message?: string;
@@ -50,12 +57,7 @@ const shouldRetryRefreshError = (error: unknown): boolean => {
     return true;
   }
 
-  return (
-    status === 401 ||
-    status === 403 ||
-    error.code === "ERR_NETWORK" ||
-    error.code === "ECONNABORTED"
-  );
+  return error.code === "ERR_NETWORK" || error.code === "ECONNABORTED";
 };
 
 const postRefresh = async (apiUrl: string): Promise<AuthResponse> => {
@@ -75,9 +77,19 @@ export const refreshAuthSession = async () => {
     throw new Error("NEXT_PUBLIC_API_URL is not configured");
   }
 
+  if (Date.now() < refreshCircuitOpenUntil) {
+    captureFrontendMessage("refresh_retry_loop_prevented", {
+      circuitOpenUntil: refreshCircuitOpenUntil,
+    });
+    expireLocalAuthSession("refresh_circuit_open");
+    throw new Error("Refresh temporarily disabled after repeated failures");
+  }
+
   if (refreshPromise && process.env.NODE_ENV !== "production") {
     console.info("auth_refresh", { event: "deduped_inflight" });
   }
+
+  const startedEpoch = getAuthSessionEpoch();
 
   refreshPromise ??= postRefresh(apiUrl)
     .catch(async (error: unknown) => {
@@ -99,6 +111,17 @@ export const refreshAuthSession = async () => {
       return postRefresh(apiUrl);
     })
     .then((session) => {
+      consecutiveRefreshFailures = 0;
+      refreshCircuitOpenUntil = 0;
+
+      if (getAuthSessionEpoch() !== startedEpoch) {
+        captureFrontendMessage("auth_refresh_stale_result_ignored", {
+          startedEpoch,
+          currentEpoch: getAuthSessionEpoch(),
+        });
+        throw new Error("Stale refresh result ignored");
+      }
+
       if (process.env.NODE_ENV !== "production") {
         console.info("auth_refresh", {
           event: "success",
@@ -112,6 +135,18 @@ export const refreshAuthSession = async () => {
       return session;
     })
     .catch((error: unknown) => {
+      consecutiveRefreshFailures += 1;
+
+      if (consecutiveRefreshFailures >= refreshCircuitBreakerThreshold) {
+        refreshCircuitOpenUntil = Date.now() + refreshCircuitBreakerMs;
+        captureFrontendMessage("refresh_circuit_opened", {
+          failures: consecutiveRefreshFailures,
+          cooldownMs: refreshCircuitBreakerMs,
+        });
+      } else {
+        refreshCircuitOpenUntil = Date.now() + refreshCooldownMs;
+      }
+
       if (process.env.NODE_ENV !== "production") {
         console.info("auth_refresh", {
           event: "failed",
@@ -122,6 +157,24 @@ export const refreshAuthSession = async () => {
         area: "auth_refresh",
         status: axios.isAxiosError(error) ? error.response?.status ?? null : null,
       });
+
+      const status = axios.isAxiosError(error)
+        ? error.response?.status
+        : undefined;
+      const code = axios.isAxiosError<ApiErrorBody>(error)
+        ? error.response?.data?.code
+        : undefined;
+
+      if (
+        status === 401 ||
+        status === 403 ||
+        code === "REFRESH_TOKEN_STALE" ||
+        code === "REFRESH_REUSE_DETECTED"
+      ) {
+        expireLocalAuthSession(String(code ?? status ?? "refresh_failed"));
+      } else if (consecutiveRefreshFailures >= refreshCircuitBreakerThreshold) {
+        expireLocalAuthSession("refresh_circuit_breaker");
+      }
 
       throw error;
     })
@@ -185,14 +238,17 @@ api.interceptors.response.use(
 
         if (refreshStatus === 401 || refreshStatus === 403) {
           refreshFailedAuth = true;
-          // Refresh failure means the current request is unauthenticated. It is
-          // not a logout event; AuthHydrator owns final auth-state resolution.
+          expireLocalAuthSession(`request_retry_refresh_${refreshStatus}`);
           if (process.env.NODE_ENV !== "production") {
             console.info("auth_refresh", {
               event: "request_retry_failed_unauthenticated",
               status: refreshStatus,
             });
           }
+        } else {
+          captureFrontendMessage("refresh_retry_loop_prevented", {
+            status: refreshStatus ?? null,
+          });
         }
       }
     }

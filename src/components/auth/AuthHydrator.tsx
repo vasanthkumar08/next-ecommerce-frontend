@@ -11,11 +11,14 @@ import {
 import {
   AUTH_SESSION_EVENT,
   AUTH_SESSION_STORAGE_KEY,
+  createAuthBroadcastChannel,
   getAuthSessionEpoch,
   getPostLoginRefreshDelayMs,
   hasCompletedLogout,
+  parseAuthSessionEvent,
   persistAuthSession,
   shouldSkipRefreshAfterRecentLogin,
+  type AuthSessionEventPayload,
 } from "@/features/auth/authStorage";
 import { useAppDispatch } from "@/store/hooks";
 import { markPerf, measurePerf } from "@/lib/perf";
@@ -37,10 +40,11 @@ export default function AuthHydrator() {
     let cancelled = false;
     let hydrationInFlight = false;
 
-    const clearFromAuthEvent = () => {
+    const clearFromAuthEvent = (reason = "auth_event") => {
       if (process.env.NODE_ENV !== "production") {
         console.info("auth_hydration", {
           event: "local_session_cleared",
+          reason,
           epoch: getAuthSessionEpoch(),
         });
       }
@@ -48,22 +52,48 @@ export default function AuthHydrator() {
       dispatch(hydrateAuth({ user: null, accessToken: null }));
     };
 
-    const apiUrl = getApiBaseUrl();
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === AUTH_SESSION_STORAGE_KEY) {
-        clearFromAuthEvent();
+    const handleAuthSessionEvent = (
+      event: AuthSessionEventPayload | null
+    ) => {
+      if (!event) return;
+
+      if (
+        event.type === "logout" ||
+        event.type === "refresh_failed" ||
+        event.type === "stale_tab_logout"
+      ) {
+        clearFromAuthEvent(event.reason ?? event.type);
       }
     };
 
-    window.addEventListener(AUTH_SESSION_EVENT, clearFromAuthEvent);
+    const apiUrl = getApiBaseUrl();
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === AUTH_SESSION_STORAGE_KEY) {
+        handleAuthSessionEvent(parseAuthSessionEvent(event.newValue));
+      }
+    };
+    const onAuthEvent = (event: Event) => {
+      handleAuthSessionEvent(
+        event instanceof CustomEvent ? event.detail ?? null : null
+      );
+    };
+    const authChannel = createAuthBroadcastChannel();
+    const onBroadcastMessage = (event: MessageEvent<AuthSessionEventPayload>) => {
+      handleAuthSessionEvent(event.data);
+    };
+
+    window.addEventListener(AUTH_SESSION_EVENT, onAuthEvent);
     window.addEventListener("storage", onStorage);
+    authChannel?.addEventListener("message", onBroadcastMessage);
 
     if (!apiUrl) {
-      clearFromAuthEvent();
+      clearFromAuthEvent("missing_api_url");
       return () => {
         cancelled = true;
-        window.removeEventListener(AUTH_SESSION_EVENT, clearFromAuthEvent);
+        window.removeEventListener(AUTH_SESSION_EVENT, onAuthEvent);
         window.removeEventListener("storage", onStorage);
+        authChannel?.removeEventListener("message", onBroadcastMessage);
+        authChannel?.close();
       };
     }
 
@@ -75,11 +105,13 @@ export default function AuthHydrator() {
         });
       }
 
-      clearFromAuthEvent();
+      clearFromAuthEvent("completed_logout");
       return () => {
         cancelled = true;
-        window.removeEventListener(AUTH_SESSION_EVENT, clearFromAuthEvent);
+        window.removeEventListener(AUTH_SESSION_EVENT, onAuthEvent);
         window.removeEventListener("storage", onStorage);
+        authChannel?.removeEventListener("message", onBroadcastMessage);
+        authChannel?.close();
       };
     }
 
@@ -182,9 +214,9 @@ export default function AuthHydrator() {
           ? error.response?.status
           : undefined;
 
-        if (isConfirmedInvalidRefreshError(error)) {
+        if (isConfirmedInvalidRefreshError(error) || status === 401 || status === 403) {
           dispatch(hydrateAuth({ user: null, accessToken: null }));
-        } else if (status === 401 || status === 403) {
+        } else {
           // A failed refresh means the browser currently has no usable backend
           // session. It is not a logout event and must not clear cookies,
           // revoke sessions, emit global logout-style auth events, or redirect
@@ -224,8 +256,10 @@ export default function AuthHydrator() {
           epoch: getAuthSessionEpoch(),
         });
       }
-      window.removeEventListener(AUTH_SESSION_EVENT, clearFromAuthEvent);
+      window.removeEventListener(AUTH_SESSION_EVENT, onAuthEvent);
       window.removeEventListener("storage", onStorage);
+      authChannel?.removeEventListener("message", onBroadcastMessage);
+      authChannel?.close();
     };
   }, [dispatch]);
 

@@ -10,15 +10,16 @@ import {
 export default function HydrateWishlist() {
   const dispatch = useAppDispatch();
   const authStatus = useAppSelector((state) => state.auth.status);
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const userId = useAppSelector((state) => state.auth.user?.id);
   const hydratedForUserRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (authStatus === "loading" || authStatus === "unknown") {
+    if ((authStatus === "loading" || authStatus === "unknown") && !isAuthenticated) {
       return;
     }
 
-    if (authStatus === "guest") {
+    if (authStatus === "guest" || !isAuthenticated) {
       hydratedForUserRef.current = null;
       // Logout only removes sensitive client-visible state. Backend wishlist is
       // user-owned data and remains untouched for the next session/device.
@@ -32,7 +33,7 @@ export default function HydrateWishlist() {
 
     hydratedForUserRef.current = userId;
     void dispatch(hydrateWishlist());
-  }, [authStatus, dispatch, userId]);
+  }, [authStatus, dispatch, isAuthenticated, userId]);
 
   return null;
 }

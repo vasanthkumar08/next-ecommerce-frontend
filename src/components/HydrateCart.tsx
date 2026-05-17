@@ -58,7 +58,7 @@ export default function HydrateCart({
     const runId = hydrationRun.current + 1;
     hydrationRun.current = runId;
 
-    if (authStatus === "loading" || authStatus === "unknown") {
+    if ((authStatus === "loading" || authStatus === "unknown") && !isAuthenticated) {
       return;
     }
 

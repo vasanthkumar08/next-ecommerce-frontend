@@ -29,9 +29,13 @@ export default function PersistCart() {
       return;
     }
 
+    const canUseAccount =
+      authStatus === "authenticated" ||
+      (authStatus === "unknown" && isAuthenticated);
+
     const canPersistAuthenticatedCache =
       isAuthenticated &&
-      authStatus === "authenticated" &&
+      canUseAccount &&
       backendHydrated &&
       backendHydratedUserId === userId;
 

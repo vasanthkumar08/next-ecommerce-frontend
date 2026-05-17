@@ -107,7 +107,11 @@ const ordersSlice = createSlice({
             : "Failed to load orders";
       })
       .addCase(cancelOrderById.fulfilled, (state, action) => {
-        state.items = state.items.filter((item) => item.id !== action.payload);
+        const order = state.items.find((item) => item.id === action.payload);
+        if (order) {
+          order.status = "Cancelled";
+          order.isDelivered = false;
+        }
       });
   },
 });

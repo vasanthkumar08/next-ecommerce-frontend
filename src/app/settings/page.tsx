@@ -116,15 +116,15 @@ export default function SettingsPage() {
             </h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <input
-                defaultValue="K. Vasanth"
+                placeholder="Name"
                 className="h-12 rounded-2xl border border-slate-200 px-4 text-sm outline-none transition focus:border-[#ff6700] focus:ring-2 focus:ring-orange-500/15"
               />
               <input
-                defaultValue="+91 98765 43210"
+                placeholder="Phone"
                 className="h-12 rounded-2xl border border-slate-200 px-4 text-sm outline-none transition focus:border-[#ff6700] focus:ring-2 focus:ring-orange-500/15"
               />
               <input
-                defaultValue="vasanth@example.com"
+                placeholder="Email"
                 readOnly
                 className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-500 outline-none md:col-span-2"
               />

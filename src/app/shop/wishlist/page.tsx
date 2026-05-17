@@ -21,6 +21,7 @@ export default function WishlistPage() {
   const toast = useToastContext();
   const items = useAppSelector((state) => state.wishlist.items);
   const authStatus = useAppSelector((state) => state.auth.status);
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const userId = useAppSelector((state) => state.auth.user?.id);
   const backendHydrated = useAppSelector((state) => state.cart.backendHydrated);
   const backendHydratedUserId = useAppSelector(
@@ -28,13 +29,17 @@ export default function WishlistPage() {
   );
 
   const handleRemove = (id: string) => {
-    if (authStatus !== "authenticated") return;
+    if (authStatus !== "authenticated" && !isAuthenticated) {
+      toast.info("Loading...");
+      return;
+    }
+
     void dispatch(removeWishlistItem(id));
     toast.info("Success");
   };
 
   const handleAddToCart = (product: (typeof items)[0]) => {
-    if (authStatus !== "authenticated") {
+    if (authStatus !== "authenticated" && !isAuthenticated) {
       toast.info("Loading...");
       return;
     }

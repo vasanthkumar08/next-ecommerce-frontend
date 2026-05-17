@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Camera,
   Heart,
@@ -21,6 +21,8 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout } from "@/features/auth/authSlice";
 import { loadOrders } from "@/features/orders/ordersSlice";
 import { countRender, markPerf, measurePerf } from "@/lib/perf";
+import api from "@/lib/axios";
+import { toast } from "sonner";
 
 const avatarUrl =
   "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=500&q=85";
@@ -46,22 +48,20 @@ export default function ProfilePage() {
   const orders = useAppSelector((state) => state.orders.items);
   const ordersLoading = useAppSelector((state) => state.orders.loading);
 
-  const fallbackUser = useMemo(
-    () => ({
-      name: "K. Vasanth",
-      email: "vasanth@example.com",
-      phone: "+91 98765 43210",
-      joinedAt: "January 2026",
-    }),
-    []
-  );
-
   const [nameOverride, setNameOverride] = useState<string | null>(null);
-  const [phone, setPhone] = useState(fallbackUser.phone);
-  const name = nameOverride ?? authUser?.name ?? fallbackUser.name;
+  const [phone, setPhone] = useState(authUser?.phone ?? "");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const name = nameOverride ?? authUser?.name ?? "";
+  const email = authUser?.email ?? "";
+  const canUseAccount =
+    authStatus === "authenticated" ||
+    (authStatus === "unknown" && isAuthenticated);
 
   useEffect(() => {
-    if (authHydrated && !isAuthenticated) {
+    if (!authHydrated || logoutLoading) return;
+    if (authStatus !== "guest") return;
+
+    if (!isAuthenticated) {
       if (process.env.NODE_ENV !== "production") {
         console.info("client_auth_guard", {
           event: "redirect_to_login",
@@ -72,13 +72,62 @@ export default function ProfilePage() {
 
       router.replace("/login?next=/profile");
     }
-  }, [authHydrated, isAuthenticated, router]);
+  }, [authHydrated, authStatus, isAuthenticated, logoutLoading, router]);
 
   useEffect(() => {
-    if (authStatus === "authenticated" && authUser?.id) {
+    if (canUseAccount && authUser?.id) {
       void dispatch(loadOrders(authUser.id));
     }
-  }, [authStatus, authUser?.id, dispatch]);
+  }, [canUseAccount, authUser?.id, dispatch]);
+
+  useEffect(() => {
+    if (!authHydrated || !canUseAccount) return;
+
+    let cancelled = false;
+
+    api
+      .get<{ data: { name?: string; email?: string; phone?: string } }>(
+        "/v1/users/me"
+      )
+      .then((response) => {
+        if (cancelled) return;
+        setNameOverride(response.data.data.name ?? authUser?.name ?? "");
+        setPhone(response.data.data.phone ?? authUser?.phone ?? "");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPhone(authUser?.phone ?? "");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authHydrated, authUser?.name, authUser?.phone, canUseAccount]);
+
+  const handleSaveProfile = async () => {
+    if (!canUseAccount) {
+      toast.info("Loading...");
+      return;
+    }
+
+    try {
+      setSavingProfile(true);
+      const response = await api.put<{
+        data: { name?: string; phone?: string };
+      }>("/v1/users/me", {
+        name: name.trim(),
+        phone: phone.trim(),
+      });
+
+      setNameOverride(response.data.data.name ?? name.trim());
+      setPhone(response.data.data.phone ?? phone.trim());
+      toast.success("Success");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save profile");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   if (!authHydrated || logoutLoading) {
     return (
@@ -122,7 +171,7 @@ export default function ProfilePage() {
               <div className="relative h-14 w-14 overflow-hidden rounded-full">
                 <Image
                   src={avatarUrl}
-                  alt="K. Vasanth profile avatar"
+                  alt={`${name || "Profile"} profile avatar`}
                   fill
                   sizes="56px"
                   className="object-cover"
@@ -131,10 +180,10 @@ export default function ProfilePage() {
               </div>
               <div className="min-w-0">
                 <p className="truncate font-black text-slate-950">
-                  {authUser?.name ?? fallbackUser.name}
+                  {name || "Profile"}
                 </p>
                 <p className="truncate text-xs font-semibold text-slate-500">
-                  {authUser?.email ?? fallbackUser.email}
+                  {email}
                 </p>
               </div>
             </div>
@@ -179,7 +228,7 @@ export default function ProfilePage() {
                 <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-white shadow-xl">
                   <Image
                     src={avatarUrl}
-                    alt="K. Vasanth avatar"
+                    alt={`${name || "Profile"} avatar`}
                     fill
                     sizes="112px"
                     className="object-cover"
@@ -197,11 +246,10 @@ export default function ProfilePage() {
                     My Profile
                   </p>
                   <h1 className="mt-2 text-3xl font-black text-slate-950">
-                    {authUser?.name ?? fallbackUser.name}
+                    {name || "Profile"}
                   </h1>
                   <p className="mt-1 text-sm font-semibold text-slate-500">
-                    Joined {fallbackUser.joinedAt} • Prime-style member benefits
-                    active
+                    Account details and order activity
                   </p>
                 </div>
 
@@ -254,14 +302,19 @@ export default function ProfilePage() {
                   <label className="grid gap-2 text-sm font-bold text-slate-700 md:col-span-2">
                     Email
                     <input
-                      value={authUser?.email ?? fallbackUser.email}
+                      value={email}
                       readOnly
                       className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-500 outline-none"
                     />
                   </label>
-                  <button className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#ff6700] px-5 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:-translate-y-0.5 hover:bg-[#f05f00] active:scale-95 md:col-span-2">
+                  <button
+                    type="button"
+                    disabled={savingProfile}
+                    onClick={() => void handleSaveProfile()}
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#ff6700] px-5 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:-translate-y-0.5 hover:bg-[#f05f00] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 md:col-span-2"
+                  >
                     <Save className="h-4 w-4" />
-                    Save Changes
+                    {savingProfile ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               </section>
@@ -315,11 +368,11 @@ export default function ProfilePage() {
               <div className="grid gap-3">
                 {ordersLoading ? (
                   <div className="rounded-3xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-500">
-                    Loading your backend order history...
+                    Loading...
                   </div>
                 ) : recentOrders.length === 0 ? (
                   <div className="rounded-3xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-500">
-                    No backend orders yet.
+                    No orders yet.
                   </div>
                 ) : recentOrders.map((order) => (
                   <div

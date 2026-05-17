@@ -223,19 +223,16 @@ const normalizeOrderStatus = (
     delivered: "Delivered",
     completed: "Delivered",
     cancelled: "Cancelled",
+    refunded: "Cancelled",
   };
 
   return map[normalized] ?? "Pending";
 };
 
 export const cancelOrder = async (id: string): Promise<{ id: string }> => {
-  try {
-    const response = await api.delete<{ success: boolean; data: { id: string } }>(
-      `/v1/orders/${id}`
-    );
+  const response = await api.delete<{ success: boolean; data?: { id: string } }>(
+    `/v1/orders/${id}`
+  );
 
-    return response.data.data;
-  } catch {
-    return { id };
-  }
+  return response.data.data ?? { id };
 };

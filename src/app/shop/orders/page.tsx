@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   cancelOrderById,
@@ -96,26 +96,38 @@ export default function OrdersHistoryPage() {
   const error = useAppSelector(selectOrdersError);
   const userId = useAppSelector((state) => state.auth.user?.id);
   const authStatus = useAppSelector((state) => state.auth.status);
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const canUseAccount =
+    authStatus === "authenticated" ||
+    (authStatus === "unknown" && isAuthenticated);
 
   useEffect(() => {
-    if (authStatus !== "authenticated" || !userId) return;
+    if (!canUseAccount || !userId) return;
     void dispatch(loadOrders(userId));
-  }, [authStatus, dispatch, userId]);
+  }, [canUseAccount, dispatch, userId]);
 
   const handleCancel = async (orderId: string, isDelivered?: boolean) => {
     if (isDelivered) {
-      toast.error("Failed");
+      toast.error("Order already delivered");
       return;
     }
 
+    if (!canUseAccount || !userId) {
+      toast.info("Loading...");
+      return;
+    }
+
+    setCancellingOrderId(orderId);
     const result = await dispatch(cancelOrderById(orderId));
+    setCancellingOrderId(null);
 
     if (cancelOrderById.fulfilled.match(result)) {
       toast.success("Success");
       return;
     }
 
-    toast.error("Failed");
+    toast.error((result.payload as string | undefined) ?? "Could not cancel order");
   };
 
   return (
@@ -262,11 +274,15 @@ export default function OrdersHistoryPage() {
                       )}
                       <button
                         type="button"
-                        disabled={order.isDelivered || order.status === "Delivered"}
+                        disabled={
+                          order.isDelivered ||
+                          order.status === "Delivered" ||
+                          cancellingOrderId === order.id
+                        }
                         onClick={() => void handleCancel(order.id, order.isDelivered || order.status === "Delivered")}
                         className="inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-white px-4 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-[#e0e0e0] disabled:text-[#999999] disabled:hover:bg-white"
                       >
-                        Cancel Order
+                        {cancellingOrderId === order.id ? "Cancelling..." : "Cancel Order"}
                       </button>
                     </div>
                   </div>

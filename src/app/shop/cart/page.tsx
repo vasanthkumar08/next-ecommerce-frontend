@@ -19,9 +19,12 @@ export default function CartPage() {
   const backendHydrationError = useAppSelector(
     (state) => state.cart.backendHydrationError
   );
+  const canUseAccount =
+    authStatus === "authenticated" ||
+    (authStatus === "unknown" && isAuthenticated);
   const waitingForBackendCart =
     isAuthenticated &&
-    authStatus === "authenticated" &&
+    canUseAccount &&
     (!backendHydrated || backendHydratedUserId !== userId);
 
   const total = cartItems.reduce(

@@ -157,7 +157,7 @@ export default function ProductDetailsPage() {
   const handleWishlist = useCallback(() => {
     if (!product) return;
 
-    if (authStatus === "loading" || authStatus === "unknown") {
+    if ((authStatus === "loading" || authStatus === "unknown") && !isLoggedIn) {
       return;
     }
 

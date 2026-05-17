@@ -141,6 +141,9 @@ export default function CheckoutPage() {
     cvv: "",
   });
   const [error, setError] = useState<string | null>(null);
+  const canUseAccount =
+    authStatus === "authenticated" ||
+    (authStatus === "unknown" && isAuthenticated);
 
   const {
     register,
@@ -168,7 +171,7 @@ export default function CheckoutPage() {
   );
 
   useEffect(() => {
-    if (!authHydrated || authStatus !== "authenticated" || !isAuthenticated) {
+    if (!authHydrated || !canUseAccount) {
       return;
     }
 
@@ -180,7 +183,7 @@ export default function CheckoutPage() {
         if (defaultAddress) setSelectedAddressId(defaultAddress._id);
       })
       .catch(() => setSavedAddresses([]));
-  }, [authHydrated, authStatus, isAuthenticated]);
+  }, [authHydrated, canUseAccount]);
 
   useEffect(() => {
     if (!selectedAddressId) return;
@@ -361,7 +364,7 @@ export default function CheckoutPage() {
   );
 
   const handleCheckout = useCallback(async () => {
-    if (!authHydrated || authStatus === "loading" || authStatus === "unknown") {
+    if (!authHydrated || ((authStatus === "loading" || authStatus === "unknown") && !isAuthenticated)) {
       setError("Loading. Please try again in a moment.");
       return;
     }
@@ -424,7 +427,7 @@ export default function CheckoutPage() {
   ]);
 
   if (
-    authStatus === "authenticated" &&
+    canUseAccount &&
     isAuthenticated &&
     (!backendHydrated || backendHydratedUserId !== user?.id)
   ) {

@@ -56,10 +56,12 @@ export const loadOrders = createAsyncThunk(
 
 export const cancelOrderById = createAsyncThunk(
   "orders/cancel",
-  async (id: string, { rejectWithValue }) => {
+  async (
+    { id, userId }: { id: string; userId?: string },
+    { rejectWithValue }
+  ) => {
     try {
-      await cancelOrder(id);
-      return id;
+      return await cancelOrder(id, userId);
     } catch (error) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to cancel order"
@@ -107,10 +109,18 @@ const ordersSlice = createSlice({
             : "Failed to load orders";
       })
       .addCase(cancelOrderById.fulfilled, (state, action) => {
-        const order = state.items.find((item) => item.id === action.payload);
+        const order = state.items.find((item) => item.id === action.payload.id);
         if (order) {
-          order.status = "Cancelled";
-          order.isDelivered = false;
+          Object.assign(order, action.payload, {
+            status: "Cancelled",
+            isDelivered: false,
+          });
+        } else {
+          state.items.unshift({
+            ...action.payload,
+            status: "Cancelled",
+            isDelivered: false,
+          });
         }
       });
   },

@@ -229,11 +229,14 @@ const normalizeOrderStatus = (
   return map[normalized] ?? "Pending";
 };
 
-export const cancelOrder = async (id: string): Promise<{ id: string }> => {
+export const cancelOrder = async (
+  id: string,
+  userId?: string
+): Promise<Order> => {
   let response;
 
   try {
-    response = await api.delete<{ success: boolean; data?: { id: string } }>(
+    response = await api.delete<{ success: boolean; data?: BackendOrder }>(
       `/v1/orders/${id}`
     );
   } catch (error) {
@@ -256,5 +259,14 @@ export const cancelOrder = async (id: string): Promise<{ id: string }> => {
     throw error;
   }
 
-  return response.data.data ?? { id };
+  return response.data.data
+    ? toOrder(response.data.data, userId)
+    : ({
+        id,
+        createdAt: new Date().toISOString(),
+        status: "Cancelled",
+        items: [],
+        total: 0,
+        userId,
+      } satisfies Order);
 };

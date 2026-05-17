@@ -31,6 +31,14 @@ const STATUS_STEP: Record<string, number> = {
 const STEPS = ["Ordered", "Processing", "Shipped", "Delivered"];
 
 function OrderTimeline({ status }: { status: string }) {
+  if (status === "Cancelled") {
+    return (
+      <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+        Order cancelled
+      </div>
+    );
+  }
+
   const step = STATUS_STEP[status] ?? 0;
   return (
     <div className="mt-4 flex items-center gap-0">
@@ -119,12 +127,11 @@ export default function OrdersHistoryPage() {
     }
 
     setCancellingOrderId(orderId);
-    const result = await dispatch(cancelOrderById(orderId));
+    const result = await dispatch(cancelOrderById({ id: orderId, userId }));
     setCancellingOrderId(null);
 
     if (cancelOrderById.fulfilled.match(result)) {
       toast.success("Success");
-      void dispatch(loadOrders(userId));
       return;
     }
 
@@ -200,6 +207,9 @@ export default function OrdersHistoryPage() {
             {orders.map((order) => {
               const badgeVariant: BadgeVariant =
                 STATUS_BADGE[order.status] ?? "gray";
+              const isCancelled = order.status === "Cancelled";
+              const isDelivered =
+                order.isDelivered || order.status === "Delivered";
               return (
                 <div
                   key={order.id}
@@ -272,7 +282,11 @@ export default function OrdersHistoryPage() {
                     </p>
                     <OrderTimeline status={order.status} />
                     <div className="mt-5 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      {order.isDelivered || order.status === "Delivered" ? (
+                      {isCancelled ? (
+                        <p className="text-sm font-semibold text-red-600">
+                          This order has been cancelled.
+                        </p>
+                      ) : isDelivered ? (
                         <p className="text-sm font-semibold text-[#666666]">
                           Order already delivered
                         </p>
@@ -281,18 +295,18 @@ export default function OrdersHistoryPage() {
                           You can cancel this order before delivery.
                         </p>
                       )}
-                      <button
-                        type="button"
-                        disabled={
-                          order.isDelivered ||
-                          order.status === "Delivered" ||
-                          cancellingOrderId === order.id
-                        }
-                        onClick={() => void handleCancel(order.id, order.isDelivered || order.status === "Delivered")}
-                        className="inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-white px-4 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-[#e0e0e0] disabled:text-[#999999] disabled:hover:bg-white"
-                      >
-                        {cancellingOrderId === order.id ? "Cancelling..." : "Cancel Order"}
-                      </button>
+                      {!isCancelled && (
+                        <button
+                          type="button"
+                          disabled={isDelivered || cancellingOrderId === order.id}
+                          onClick={() => void handleCancel(order.id, isDelivered)}
+                          className="inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-white px-4 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-[#e0e0e0] disabled:text-[#999999] disabled:hover:bg-white"
+                        >
+                          {cancellingOrderId === order.id
+                            ? "Cancelling..."
+                            : "Cancel Order"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

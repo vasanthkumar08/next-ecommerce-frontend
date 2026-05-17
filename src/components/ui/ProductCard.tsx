@@ -94,6 +94,7 @@ function ProductCard({ product }: ProductCardProps) {
     },
     [
       authHydrated,
+      authStatus,
       backendHydrated,
       backendHydratedUserId,
       dispatch,

@@ -2,11 +2,13 @@ import axios from "axios";
 import { getApiBaseUrl } from "@/lib/apiUrl";
 import {
   expireLocalAuthSession,
+  expireLocalAuthSessionIfInactive,
   getCsrfToken,
   getAuthSessionEpoch,
   getStoredAccessToken,
   getStoredRefreshToken,
   persistAuthSession,
+  recordAuthActivity,
 } from "@/features/auth/authStorage";
 import type { AuthResponse } from "@/features/auth/auth.api";
 import { captureFrontendException, captureFrontendMessage } from "@/lib/observability";
@@ -93,7 +95,7 @@ export const refreshAuthSession = async () => {
     captureFrontendMessage("refresh_retry_loop_prevented", {
       circuitOpenUntil: refreshCircuitOpenUntil,
     });
-    expireLocalAuthSession("refresh_circuit_open");
+    expireLocalAuthSessionIfInactive("inactive_refresh_circuit_open");
     throw new Error("Refresh temporarily disabled after repeated failures");
   }
 
@@ -184,17 +186,20 @@ export const refreshAuthSession = async () => {
         : undefined;
 
       if (
-        (status === 401 && !isMissingRefreshCookieError(error)) ||
+        code === "SESSION_INACTIVE_TIMEOUT" ||
+        status === 401 ||
         status === 403 ||
         code === "REFRESH_TOKEN_STALE" ||
-        code === "REFRESH_REUSE_DETECTED"
+        code === "REFRESH_REUSE_DETECTED" ||
+        (!missingRefreshCookie &&
+          consecutiveRefreshFailures >= refreshCircuitBreakerThreshold)
       ) {
-        expireLocalAuthSession(String(code ?? status ?? "refresh_failed"));
-      } else if (
-        !missingRefreshCookie &&
-        consecutiveRefreshFailures >= refreshCircuitBreakerThreshold
-      ) {
-        expireLocalAuthSession("refresh_circuit_breaker");
+        const reason = String(code ?? status ?? "refresh_failed");
+        if (code === "SESSION_INACTIVE_TIMEOUT") {
+          expireLocalAuthSession(reason);
+        } else {
+          expireLocalAuthSessionIfInactive(reason);
+        }
       }
 
       throw error;
@@ -209,6 +214,8 @@ export const refreshAuthSession = async () => {
 api.interceptors.request.use((config) => {
   const csrfToken = getCsrfToken();
   const accessToken = getStoredAccessToken();
+
+  recordAuthActivity();
 
   if (csrfToken) {
     config.headers["X-CSRF-Token"] = csrfToken;
@@ -265,7 +272,9 @@ api.interceptors.response.use(
 
         if (refreshStatus === 401 || refreshStatus === 403) {
           refreshFailedAuth = true;
-          expireLocalAuthSession(`request_retry_refresh_${refreshStatus}`);
+          expireLocalAuthSessionIfInactive(
+            `request_retry_refresh_${refreshStatus}`
+          );
           if (process.env.NODE_ENV !== "production") {
             console.info("auth_refresh", {
               event: "request_retry_failed_unauthenticated",

@@ -43,7 +43,7 @@ export default function PersistCart() {
       if (isCartSyncPaused()) {
         return;
       }
-      syncCartToBackend(items, true);
+      syncCartToBackend(items, true, userId);
     }
   }, [
     authStatus,

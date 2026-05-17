@@ -11,14 +11,17 @@ import {
 } from "@/features/cart/cartSlice";
 import {
   saveCart,
+  loadPendingCartSync,
 } from "@/features/cart/cartPersist";
 import { fetchBackendCart } from "@/features/cart/cartBackend";
 import {
   pauseCartSync,
   resumeCartSync,
   isCartSyncInFlight,
+  hasPendingCartSync,
   setCartSyncBase,
   suppressNextCartSync,
+  syncCartToBackend,
 } from "@/features/cart/cartSync";
 import { captureFrontendException, captureFrontendMessage } from "@/lib/observability";
 
@@ -74,7 +77,26 @@ export default function HydrateCart({
         return;
       }
 
+      if (reason === "initial") {
+        const pendingCart = loadPendingCartSync(userId);
+        if (pendingCart && pendingCart.length > 0) {
+          dispatch(
+            hydrateBackendCart({
+              items: pendingCart,
+              userId,
+              revision: backendRevisionRef.current,
+            })
+          );
+          syncCartToBackend(pendingCart, true, userId);
+          return;
+        }
+      }
+
       if (reason !== "initial" && isCartSyncInFlight()) {
+        return;
+      }
+
+      if (reason !== "initial" && hasPendingCartSync()) {
         return;
       }
 

@@ -35,14 +35,14 @@ export default function WishlistPage() {
 
   const handleAddToCart = (product: (typeof items)[0]) => {
     if (authStatus !== "authenticated") {
-      toast.info("Restoring your session...");
+      toast.info("Loading...");
       return;
     }
 
     if (
       (!backendHydrated || backendHydratedUserId !== userId)
     ) {
-      toast.info("Loading your account cart...");
+      toast.info("Loading...");
       return;
     }
 

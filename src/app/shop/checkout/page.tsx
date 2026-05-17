@@ -362,7 +362,7 @@ export default function CheckoutPage() {
 
   const handleCheckout = useCallback(async () => {
     if (!authHydrated || authStatus === "loading" || authStatus === "unknown") {
-      setError("Restoring your session. Please try again in a moment.");
+      setError("Loading. Please try again in a moment.");
       return;
     }
 
@@ -372,7 +372,7 @@ export default function CheckoutPage() {
     }
 
     if (!backendHydrated || backendHydratedUserId !== user?.id) {
-      setError("Loading your backend cart. Please try again in a moment.");
+      setError("Loading. Please try again in a moment.");
       return;
     }
 
@@ -433,11 +433,8 @@ export default function CheckoutPage() {
         <div className="mx-auto max-w-md rounded-3xl border border-white/70 bg-white/80 p-8 shadow-[0_24px_80px_rgba(37,99,235,0.12)] backdrop-blur-xl">
           <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-[#ff6700] border-t-transparent" />
           <h2 className="text-2xl font-bold text-[#111111]">
-            Loading account cart
+            Loading
           </h2>
-          <p className="mt-2 text-sm text-[#64748b]">
-            Checkout uses your backend cart only. Please wait while it loads.
-          </p>
         </div>
       </div>
     );

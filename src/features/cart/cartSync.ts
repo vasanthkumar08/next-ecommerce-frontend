@@ -1,11 +1,13 @@
 import api from "@/lib/axios";
 import { getCsrfToken } from "@/features/auth/authStorage";
 import type { CartItem } from "./cartSlice";
+import { clearPendingCartSync, savePendingCartSync } from "./cartPersist";
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let syncPaused = false;
 let syncInFlight = false;
 let pendingSnapshot: { items: CartItem[]; isAuthenticated: boolean } | null = null;
+let dirtySnapshotKey: string | null = null;
 let suppressedSnapshotKey: string | null = null;
 let baseProductIds: Set<string> | null = null;
 let baseQuantities: Map<string, number> | null = null;
@@ -50,13 +52,16 @@ const requestCanonicalCartHydration = () => {
 
 export async function syncCartToBackendNow(
   items: CartItem[],
-  isAuthenticated: boolean
+  isAuthenticated: boolean,
+  userId?: string | null
 ): Promise<boolean> {
   if (!isAuthenticated) return false;
   pendingSnapshot = {
     items: items.map((item) => ({ ...item })),
     isAuthenticated,
   };
+  dirtySnapshotKey = getSnapshotKey(items);
+  savePendingCartSync(items, userId);
 
   if (syncInFlight) return false;
 
@@ -100,6 +105,8 @@ export async function syncCartToBackendNow(
       baseProductIds = new Set([...savedQuantities.keys()]);
       baseQuantities = savedQuantities;
       baseRevision = response.data.data?.revision ?? null;
+      dirtySnapshotKey = null;
+      clearPendingCartSync(userId);
       synced = true;
     }
 
@@ -112,7 +119,11 @@ export async function syncCartToBackendNow(
   }
 }
 
-export function syncCartToBackend(items: CartItem[], isAuthenticated: boolean) {
+export function syncCartToBackend(
+  items: CartItem[],
+  isAuthenticated: boolean,
+  userId?: string | null
+) {
   if (syncPaused) return;
   if (!isAuthenticated) return;
 
@@ -128,7 +139,7 @@ export function syncCartToBackend(items: CartItem[], isAuthenticated: boolean) {
     syncTimer = null;
   }
 
-  void syncCartToBackendNow(items, isAuthenticated);
+  void syncCartToBackendNow(items, isAuthenticated, userId);
 }
 
 export function pauseCartSync(): void {
@@ -156,6 +167,7 @@ export function setCartSyncBase(items: CartItem[], revision: number | null = nul
   baseProductIds = new Set(validItems.map((item) => item.id));
   baseQuantities = new Map(validItems.map((item) => [item.id, item.quantity]));
   baseRevision = revision;
+  dirtySnapshotKey = null;
 }
 
 export function isCartSyncPaused(): boolean {
@@ -164,4 +176,8 @@ export function isCartSyncPaused(): boolean {
 
 export function isCartSyncInFlight(): boolean {
   return syncInFlight;
+}
+
+export function hasPendingCartSync(): boolean {
+  return Boolean(dirtySnapshotKey || pendingSnapshot || syncInFlight);
 }

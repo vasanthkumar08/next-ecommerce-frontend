@@ -56,12 +56,12 @@ function ProductCard({ product }: ProductCardProps) {
   const handleAddToCart = useCallback(
     async (trigger?: HTMLElement | null) => {
     if (!authHydrated) {
-      sonnerToast.info("Restoring your session...");
+      sonnerToast.info("Loading...");
       return;
     }
 
     if (authStatus === "loading" || authStatus === "unknown") {
-      sonnerToast.info("Restoring your session...");
+      sonnerToast.info("Loading...");
       return;
     }
 
@@ -78,7 +78,7 @@ function ProductCard({ product }: ProductCardProps) {
     }
 
     if (!backendHydrated || backendHydratedUserId !== userId) {
-      sonnerToast.info("Loading your account cart...");
+      sonnerToast.info("Loading...");
       return;
     }
 
@@ -107,7 +107,7 @@ function ProductCard({ product }: ProductCardProps) {
 
   const handleWishlist = useCallback(() => {
     if (authStatus === "loading" || authStatus === "unknown") {
-      sonnerToast.info("Restoring your session...");
+      sonnerToast.info("Loading...");
       return;
     }
 

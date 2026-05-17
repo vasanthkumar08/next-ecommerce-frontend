@@ -137,7 +137,7 @@ export default function ProductDetailsPage() {
       return;
     }
     if (!backendHydrated || backendHydratedUserId !== user?.id) {
-      setError("Loading your account cart. Please try again in a moment.");
+      setError("Loading. Please try again in a moment.");
       return;
     }
     await flyProductImageToCart(trigger);
@@ -195,7 +195,7 @@ export default function ProductDetailsPage() {
       if (!product) return;
 
       if (!authHydrated) {
-        setReviewError("Restoring your session. Please try again in a moment.");
+        setReviewError("Loading. Please try again in a moment.");
         return;
       }
 

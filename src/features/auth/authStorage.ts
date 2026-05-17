@@ -10,6 +10,7 @@ const ACCESS_TOKEN_SESSION_STORAGE_KEY = "vasanthtrends:access-token";
 const ACCESS_TOKEN_LOCAL_STORAGE_KEY = "vasanthtrends:access-token:persistent";
 const REFRESH_TOKEN_LOCAL_STORAGE_KEY = "vasanthtrends:refresh-token";
 const USER_LOCAL_STORAGE_KEY = "vasanthtrends:user";
+const LAST_ACTIVITY_LOCAL_STORAGE_KEY = "vasanthtrends:last-activity-at";
 const AUTH_BROADCAST_CHANNEL = "vasanthtrends:auth";
 let logoutRequest: Promise<void> | null = null;
 let logoutCompleted = false;
@@ -17,6 +18,8 @@ let authSessionEpoch = 0;
 let lastAuthSuccessAt = 0;
 const postLoginRefreshDelayMs = 900;
 const postLoginRefreshSkipMs = 2_000;
+const inactiveLogoutMs = 2 * 24 * 60 * 60 * 1000;
+let lastActivityWriteAt = 0;
 
 export type AuthSessionEventType =
   | "session_updated"
@@ -191,6 +194,36 @@ const clearStoredUser = (): void => {
   window.localStorage.removeItem(USER_LOCAL_STORAGE_KEY);
 };
 
+const clearLastActivity = (): void => {
+  if (!canUseBrowser()) return;
+  window.localStorage.removeItem(LAST_ACTIVITY_LOCAL_STORAGE_KEY);
+};
+
+export const recordAuthActivity = (): void => {
+  if (!canUseBrowser()) return;
+
+  const now = Date.now();
+  if (now - lastActivityWriteAt < 30_000) return;
+
+  lastActivityWriteAt = now;
+  window.localStorage.setItem(LAST_ACTIVITY_LOCAL_STORAGE_KEY, String(now));
+};
+
+export const getLastAuthActivityAt = (): number | null => {
+  if (!canUseBrowser()) return null;
+
+  const raw = window.localStorage.getItem(LAST_ACTIVITY_LOCAL_STORAGE_KEY);
+  const value = raw ? Number(raw) : NaN;
+
+  return Number.isFinite(value) && value > 0 ? value : null;
+};
+
+export const isAuthInactiveExpired = (): boolean => {
+  const lastActivityAt = getLastAuthActivityAt();
+
+  return Boolean(lastActivityAt && Date.now() - lastActivityAt >= inactiveLogoutMs);
+};
+
 export const getCsrfToken = (): string | null =>
   getCookieValue(CSRF_COOKIE_NAME) ?? getStoredCsrfToken();
 
@@ -201,6 +234,7 @@ export const clearLocalAuthSession = () => {
   clearStoredAccessToken();
   clearStoredRefreshToken();
   clearStoredUser();
+  clearLastActivity();
   authSessionEpoch += 1;
   notifyAuthSessionChanged("logout");
 };
@@ -210,9 +244,19 @@ export const expireLocalAuthSession = (reason = "refresh_failed"): void => {
   clearStoredAccessToken();
   clearStoredRefreshToken();
   clearStoredUser();
+  clearLastActivity();
   logoutCompleted = true;
   authSessionEpoch += 1;
   notifyAuthSessionChanged("refresh_failed", reason);
+};
+
+export const expireLocalAuthSessionIfInactive = (
+  reason = "inactive_timeout"
+): boolean => {
+  if (!isAuthInactiveExpired()) return false;
+
+  expireLocalAuthSession(reason);
+  return true;
 };
 
 export const markStaleTabLoggedOut = (reason = "stale_tab"): void => {
@@ -220,6 +264,7 @@ export const markStaleTabLoggedOut = (reason = "stale_tab"): void => {
   clearStoredAccessToken();
   clearStoredRefreshToken();
   clearStoredUser();
+  clearLastActivity();
   logoutCompleted = true;
   authSessionEpoch += 1;
   notifyAuthSessionChanged("stale_tab_logout", reason);
@@ -282,6 +327,7 @@ export const persistAuthSession = (
   setStoredCsrfToken(csrfToken);
   logoutCompleted = false;
   lastAuthSuccessAt = Date.now();
+  recordAuthActivity();
   authSessionEpoch += 1;
   notifyAuthSessionChanged("session_updated");
 };

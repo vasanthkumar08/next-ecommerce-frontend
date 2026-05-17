@@ -17,8 +17,10 @@ import {
   getStoredAccessToken,
   getStoredUser,
   hasCompletedLogout,
+  isAuthInactiveExpired,
   parseAuthSessionEvent,
   persistAuthSession,
+  recordAuthActivity,
   shouldSkipRefreshAfterRecentLogin,
   type AuthSessionEventPayload,
 } from "@/features/auth/authStorage";
@@ -111,9 +113,13 @@ export default function AuthHydrator() {
 
       if (
         event.type === "logout" ||
-        event.type === "refresh_failed" ||
         event.type === "stale_tab_logout"
       ) {
+        clearFromAuthEvent(event.reason ?? event.type);
+        return;
+      }
+
+      if (event.type === "refresh_failed" && isAuthInactiveExpired()) {
         clearFromAuthEvent(event.reason ?? event.type);
       }
     };
@@ -138,12 +144,22 @@ export default function AuthHydrator() {
     window.addEventListener("storage", onStorage);
     authChannel?.addEventListener("message", onBroadcastMessage);
 
+    const onUserActivity = () => recordAuthActivity();
+    window.addEventListener("click", onUserActivity, { passive: true });
+    window.addEventListener("keydown", onUserActivity);
+    window.addEventListener("touchstart", onUserActivity, { passive: true });
+    window.addEventListener("visibilitychange", onUserActivity);
+
     if (!apiUrl) {
       clearFromAuthEvent("missing_api_url");
       return () => {
         cancelled = true;
         window.removeEventListener(AUTH_SESSION_EVENT, onAuthEvent);
         window.removeEventListener("storage", onStorage);
+        window.removeEventListener("click", onUserActivity);
+        window.removeEventListener("keydown", onUserActivity);
+        window.removeEventListener("touchstart", onUserActivity);
+        window.removeEventListener("visibilitychange", onUserActivity);
         authChannel?.removeEventListener("message", onBroadcastMessage);
         authChannel?.close();
       };
@@ -162,6 +178,10 @@ export default function AuthHydrator() {
         cancelled = true;
         window.removeEventListener(AUTH_SESSION_EVENT, onAuthEvent);
         window.removeEventListener("storage", onStorage);
+        window.removeEventListener("click", onUserActivity);
+        window.removeEventListener("keydown", onUserActivity);
+        window.removeEventListener("touchstart", onUserActivity);
+        window.removeEventListener("visibilitychange", onUserActivity);
         authChannel?.removeEventListener("message", onBroadcastMessage);
         authChannel?.close();
       };
@@ -172,6 +192,7 @@ export default function AuthHydrator() {
       const storedUser = getStoredUser();
 
       if (storedAccessToken && storedUser) {
+        recordAuthActivity();
         dispatch(
           hydrateAuth({
             user: storedUser,
@@ -278,6 +299,9 @@ export default function AuthHydrator() {
         const status = axios.isAxiosError(error)
           ? error.response?.status
           : undefined;
+        const code = axios.isAxiosError<{ code?: string | number | null }>(error)
+          ? error.response?.data?.code
+          : undefined;
 
         try {
           const session = await hydrateFromStoredAccessToken(apiUrl);
@@ -298,9 +322,11 @@ export default function AuthHydrator() {
               })
             );
           } else if (
-            isConfirmedInvalidRefreshError(error) ||
-            status === 401 ||
-            status === 403
+            (code === "SESSION_INACTIVE_TIMEOUT" ||
+              isAuthInactiveExpired()) &&
+            (isConfirmedInvalidRefreshError(error) ||
+              status === 401 ||
+              status === 403)
           ) {
             dispatch(hydrateAuth({ user: null, accessToken: null }));
           } else {
@@ -314,9 +340,11 @@ export default function AuthHydrator() {
           if (cancelled) return;
 
           if (
-            isConfirmedInvalidRefreshError(error) ||
-            status === 401 ||
-            status === 403
+            (code === "SESSION_INACTIVE_TIMEOUT" ||
+              isAuthInactiveExpired()) &&
+            (isConfirmedInvalidRefreshError(error) ||
+              status === 401 ||
+              status === 403)
           ) {
             dispatch(hydrateAuth({ user: null, accessToken: null }));
           } else {
@@ -357,6 +385,10 @@ export default function AuthHydrator() {
       }
       window.removeEventListener(AUTH_SESSION_EVENT, onAuthEvent);
       window.removeEventListener("storage", onStorage);
+      window.removeEventListener("click", onUserActivity);
+      window.removeEventListener("keydown", onUserActivity);
+      window.removeEventListener("touchstart", onUserActivity);
+      window.removeEventListener("visibilitychange", onUserActivity);
       authChannel?.removeEventListener("message", onBroadcastMessage);
       authChannel?.close();
     };

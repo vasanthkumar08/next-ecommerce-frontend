@@ -49,11 +49,6 @@ export const loadGuestCart = (): CartItem[] => {
   return sanitizeCart(parseCart(localStorage.getItem(getCartKey(null))));
 };
 
-export const loadUserCart = (userId: string): CartItem[] => {
-  if (typeof window === "undefined") return [];
-  return sanitizeCart(parseCart(localStorage.getItem(getCartKey(userId))));
-};
-
 export const clearGuestCart = (): void => {
   if (typeof window === "undefined") return;
   localStorage.removeItem(getCartKey(null));

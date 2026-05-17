@@ -4,10 +4,26 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { addToCart, decreaseQuantity, removeFromCart } from "@/features/cart/cartSlice";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function CartPage() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const cartItems = useAppSelector((state) => state.cart.items);
+  const authStatus = useAppSelector((state) => state.auth.status);
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const userId = useAppSelector((state) => state.auth.user?.id);
+  const backendHydrated = useAppSelector((state) => state.cart.backendHydrated);
+  const backendHydratedUserId = useAppSelector(
+    (state) => state.cart.backendHydratedUserId
+  );
+  const backendHydrationError = useAppSelector(
+    (state) => state.cart.backendHydrationError
+  );
+  const waitingForBackendCart =
+    isAuthenticated &&
+    authStatus === "authenticated" &&
+    (!backendHydrated || backendHydratedUserId !== userId);
 
   const total = cartItems.reduce(
     (acc, item) => acc + item.price * item.quantity,
@@ -22,7 +38,28 @@ export default function CartPage() {
           Shopping Cart
         </h1>
 
-        {cartItems.length === 0 ? (
+        {waitingForBackendCart ? (
+          <div className="rounded-xl border border-[#e0e0e0] bg-white p-6 text-center shadow-sm sm:p-12">
+            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-[#ff9900] border-t-transparent" />
+            <p className="mb-2 font-semibold text-[#111111]">
+              {backendHydrationError
+                ? "Could not load your backend cart"
+                : "Loading your backend cart"}
+            </p>
+            <p className="mx-auto mb-5 max-w-md text-sm text-[#666666]">
+              Your cart is tied to your account, not this device. Local cached
+              cart data will not be shown or synced until the backend cart loads.
+            </p>
+            {backendHydrationError ? (
+              <button
+                onClick={() => router.refresh()}
+                className="inline-block rounded-lg bg-[#ff9900] px-6 py-2 font-semibold text-white transition hover:bg-[#e88a00]"
+              >
+                Retry
+              </button>
+            ) : null}
+          </div>
+        ) : cartItems.length === 0 ? (
           <div className="rounded-xl border border-[#e0e0e0] bg-white p-6 text-center shadow-sm sm:p-12">
             <p className="mb-1 text-4xl">🛒</p>
             <p className="mb-4 text-[#666666]">Your cart is empty</p>

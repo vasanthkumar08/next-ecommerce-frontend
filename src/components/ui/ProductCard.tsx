@@ -46,6 +46,11 @@ function ProductCard({ product }: ProductCardProps) {
   const authStatus = useAppSelector((state) => state.auth.status);
   const authHydrated = useAppSelector((state) => state.auth.hydrated);
   const role = useAppSelector((state) => state.auth.user?.role);
+  const userId = useAppSelector((state) => state.auth.user?.id);
+  const backendHydrated = useAppSelector((state) => state.cart.backendHydrated);
+  const backendHydratedUserId = useAppSelector(
+    (state) => state.cart.backendHydratedUserId
+  );
 
   const wishlistIds = useAppSelector(selectWishlistIdSet);
   const isWishlisted = wishlistIds.has(product.id);
@@ -69,6 +74,11 @@ function ProductCard({ product }: ProductCardProps) {
       return;
     }
 
+    if (!backendHydrated || backendHydratedUserId !== userId) {
+      sonnerToast.info("Loading your account cart...");
+      return;
+    }
+
     if (!objectIdPattern.test(product.id)) {
       sonnerToast.error("This product is still syncing. Please refresh and try again.");
       return;
@@ -79,7 +89,17 @@ function ProductCard({ product }: ProductCardProps) {
       openCartDrawer(product);
       sonnerToast.success("Success");
     },
-    [authHydrated, dispatch, isLoggedIn, product, role, router]
+    [
+      authHydrated,
+      backendHydrated,
+      backendHydratedUserId,
+      dispatch,
+      isLoggedIn,
+      product,
+      role,
+      router,
+      userId,
+    ]
   );
 
   const handleWishlist = useCallback(() => {

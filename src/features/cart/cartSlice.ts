@@ -11,6 +11,7 @@ interface CartState {
   backendHydrated: boolean;
   backendHydratedUserId: string | null;
   backendHydratedAt: number | null;
+  backendHydrationError: string | null;
 }
 
 const initialState: CartState = {
@@ -19,6 +20,7 @@ const initialState: CartState = {
   backendHydrated: false,
   backendHydratedUserId: null,
   backendHydratedAt: null,
+  backendHydrationError: null,
 };
 
 const cartSlice = createSlice({
@@ -67,12 +69,32 @@ const cartSlice = createSlice({
       state.backendHydrated = true;
       state.backendHydratedUserId = action.payload.userId;
       state.backendHydratedAt = action.payload.hydratedAt ?? Date.now();
+      state.backendHydrationError = null;
+    },
+
+    markBackendCartHydrationPending: (state) => {
+      state.backendHydrated = false;
+      state.backendHydratedUserId = null;
+      state.backendHydratedAt = null;
+      state.backendHydrationError = null;
+    },
+
+    markBackendCartHydrationFailed: (
+      state,
+      action: PayloadAction<string | undefined>
+    ) => {
+      state.backendHydrated = false;
+      state.backendHydratedUserId = null;
+      state.backendHydratedAt = null;
+      state.backendHydrationError =
+        action.payload ?? "Backend cart could not be loaded";
     },
 
     resetBackendCartHydration: (state) => {
       state.backendHydrated = false;
       state.backendHydratedUserId = null;
       state.backendHydratedAt = null;
+      state.backendHydrationError = null;
     },
   },
 });
@@ -84,6 +106,8 @@ export const {
   clearCart,
   hydrateCart,
   hydrateBackendCart,
+  markBackendCartHydrationFailed,
+  markBackendCartHydrationPending,
   resetBackendCartHydration,
 } = cartSlice.actions;
 export default cartSlice.reducer;

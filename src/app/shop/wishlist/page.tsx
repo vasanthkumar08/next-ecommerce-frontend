@@ -24,6 +24,11 @@ export default function WishlistPage() {
   const toast = useToastContext();
   const items = useAppSelector((state) => state.wishlist.items);
   const authStatus = useAppSelector((state) => state.auth.status);
+  const userId = useAppSelector((state) => state.auth.user?.id);
+  const backendHydrated = useAppSelector((state) => state.cart.backendHydrated);
+  const backendHydratedUserId = useAppSelector(
+    (state) => state.cart.backendHydratedUserId
+  );
 
   const handleRemove = (id: string) => {
     if (authStatus === "authenticated") {
@@ -37,6 +42,14 @@ export default function WishlistPage() {
   };
 
   const handleAddToCart = (product: (typeof items)[0]) => {
+    if (
+      authStatus === "authenticated" &&
+      (!backendHydrated || backendHydratedUserId !== userId)
+    ) {
+      toast.info("Loading your account cart...");
+      return;
+    }
+
     dispatch(addToCart(product));
     toast.success("Success");
   };

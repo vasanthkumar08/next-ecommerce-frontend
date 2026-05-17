@@ -5,6 +5,8 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   hydrateBackendCart,
   hydrateCart,
+  markBackendCartHydrationFailed,
+  markBackendCartHydrationPending,
   resetBackendCartHydration,
 } from "@/features/cart/cartSlice";
 import {
@@ -12,7 +14,6 @@ import {
   hasCompletedGuestMerge,
   loadCart,
   loadGuestCart,
-  loadUserCart,
   markGuestMergeCompleted,
   mergeCartItems,
   saveCart,
@@ -61,9 +62,8 @@ export default function HydrateCart({
       // state cannot overwrite the multi-device backend cart.
       pauseCartSync();
 
-      const localUserCart = loadUserCart(userId);
       const guestCart = loadGuestCart();
-      dispatch(resetBackendCartHydration());
+      dispatch(markBackendCartHydrationPending());
 
       try {
         const backendCart = await fetchBackendCart();
@@ -100,10 +100,10 @@ export default function HydrateCart({
       } catch {
         if (!cancelled && hydrationRun.current === runId) {
           // Keep guest cart if merge failed; it can be retried on the next
-          // successful authenticated hydration instead of being lost.
-          dispatch(hydrateCart(localUserCart));
-          dispatch(resetBackendCartHydration());
-          suppressNextCartSync(localUserCart);
+          // successful authenticated hydration. Do not hydrate a stale
+          // authenticated local cart or sync anything to the backend.
+          dispatch(markBackendCartHydrationFailed());
+          suppressNextCartSync([]);
           resumeCartSync();
         }
       }

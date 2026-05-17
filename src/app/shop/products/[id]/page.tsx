@@ -62,6 +62,10 @@ export default function ProductDetailsPage() {
   const authStatus = useAppSelector((state) => state.auth.status);
   const authHydrated = useAppSelector((state) => state.auth.hydrated);
   const user = useAppSelector((state) => state.auth.user);
+  const backendHydrated = useAppSelector((state) => state.cart.backendHydrated);
+  const backendHydratedUserId = useAppSelector(
+    (state) => state.cart.backendHydratedUserId
+  );
   const wishlistIds = useAppSelector(selectWishlistIdSet);
   const isWishlisted = wishlistIds.has(String(id));
   const [product, setProduct] = useState<Product | null>(null);
@@ -134,10 +138,23 @@ export default function ProductDetailsPage() {
       router.push(`/login?next=${encodeURIComponent("/shop/cart")}`);
       return;
     }
+    if (!backendHydrated || backendHydratedUserId !== user?.id) {
+      setError("Loading your account cart. Please try again in a moment.");
+      return;
+    }
     await flyProductImageToCart(trigger);
     dispatch(addToCart(product));
     openCartDrawer(product);
-  }, [authHydrated, dispatch, isLoggedIn, product, router]);
+  }, [
+    authHydrated,
+    backendHydrated,
+    backendHydratedUserId,
+    dispatch,
+    isLoggedIn,
+    product,
+    router,
+    user?.id,
+  ]);
 
   const handleWishlist = useCallback(() => {
     if (!product) return;

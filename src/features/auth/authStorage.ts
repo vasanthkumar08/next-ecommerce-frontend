@@ -8,6 +8,7 @@ const CSRF_COOKIE_NAME = "csrfToken";
 const CSRF_SESSION_STORAGE_KEY = "vasanthtrends:csrf-token";
 const ACCESS_TOKEN_SESSION_STORAGE_KEY = "vasanthtrends:access-token";
 const ACCESS_TOKEN_LOCAL_STORAGE_KEY = "vasanthtrends:access-token:persistent";
+const REFRESH_TOKEN_LOCAL_STORAGE_KEY = "vasanthtrends:refresh-token";
 const USER_LOCAL_STORAGE_KEY = "vasanthtrends:user";
 const AUTH_BROADCAST_CHANNEL = "vasanthtrends:auth";
 let logoutRequest: Promise<void> | null = null;
@@ -159,6 +160,11 @@ const setStoredAccessToken = (accessToken: string | undefined): void => {
   window.localStorage.setItem(ACCESS_TOKEN_LOCAL_STORAGE_KEY, accessToken);
 };
 
+const setStoredRefreshToken = (refreshToken: string | undefined): void => {
+  if (!canUseBrowser() || !refreshToken) return;
+  window.localStorage.setItem(REFRESH_TOKEN_LOCAL_STORAGE_KEY, refreshToken);
+};
+
 const clearStoredCsrfToken = (): void => {
   if (!canUseBrowser()) return;
   window.sessionStorage.removeItem(CSRF_SESSION_STORAGE_KEY);
@@ -168,6 +174,11 @@ const clearStoredAccessToken = (): void => {
   if (!canUseBrowser()) return;
   window.sessionStorage.removeItem(ACCESS_TOKEN_SESSION_STORAGE_KEY);
   window.localStorage.removeItem(ACCESS_TOKEN_LOCAL_STORAGE_KEY);
+};
+
+const clearStoredRefreshToken = (): void => {
+  if (!canUseBrowser()) return;
+  window.localStorage.removeItem(REFRESH_TOKEN_LOCAL_STORAGE_KEY);
 };
 
 const setStoredUser = (user: User): void => {
@@ -188,6 +199,7 @@ export const clearLocalAuthSession = () => {
   // The client intentionally clears only in-memory state, reducing XSS impact.
   clearStoredCsrfToken();
   clearStoredAccessToken();
+  clearStoredRefreshToken();
   clearStoredUser();
   authSessionEpoch += 1;
   notifyAuthSessionChanged("logout");
@@ -196,6 +208,7 @@ export const clearLocalAuthSession = () => {
 export const expireLocalAuthSession = (reason = "refresh_failed"): void => {
   clearStoredCsrfToken();
   clearStoredAccessToken();
+  clearStoredRefreshToken();
   clearStoredUser();
   logoutCompleted = true;
   authSessionEpoch += 1;
@@ -205,6 +218,7 @@ export const expireLocalAuthSession = (reason = "refresh_failed"): void => {
 export const markStaleTabLoggedOut = (reason = "stale_tab"): void => {
   clearStoredCsrfToken();
   clearStoredAccessToken();
+  clearStoredRefreshToken();
   clearStoredUser();
   logoutCompleted = true;
   authSessionEpoch += 1;
@@ -217,6 +231,10 @@ export const getStoredAccessToken = (): string | null => {
     window.sessionStorage.getItem(ACCESS_TOKEN_SESSION_STORAGE_KEY) ??
     window.localStorage.getItem(ACCESS_TOKEN_LOCAL_STORAGE_KEY)
   );
+};
+export const getStoredRefreshToken = (): string | null => {
+  if (!canUseBrowser()) return null;
+  return window.localStorage.getItem(REFRESH_TOKEN_LOCAL_STORAGE_KEY);
 };
 export const getStoredUser = (): User | null => {
   if (!canUseBrowser()) return null;
@@ -252,12 +270,14 @@ export const getStoredUser = (): User | null => {
 export const persistAuthSession = (
   accessToken: string,
   user: User,
-  csrfToken?: string
+  csrfToken?: string,
+  refreshToken?: string
 ) => {
   // Cookies remain the preferred credential path. The session-scoped access
   // token is a fallback for browsers that block third-party API-domain cookies
   // in the Vercel frontend -> Render backend deployment.
   setStoredAccessToken(accessToken);
+  setStoredRefreshToken(refreshToken);
   setStoredUser(user);
   setStoredCsrfToken(csrfToken);
   logoutCompleted = false;

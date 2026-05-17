@@ -40,14 +40,8 @@ export default function CartPage() {
         {waitingForBackendCart ? (
           <div className="rounded-xl border border-[#e0e0e0] bg-white p-6 text-center shadow-sm sm:p-12">
             <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-[#ff9900] border-t-transparent" />
-            <p className="mb-2 font-semibold text-[#111111]">
-              {backendHydrationError
-                ? "Could not load your backend cart"
-                : "Loading your backend cart"}
-            </p>
-            <p className="mx-auto mb-5 max-w-md text-sm text-[#666666]">
-              Your cart is tied to your account, not this device. Local cached
-              cart data will not be shown or synced until the backend cart loads.
+            <p className="mb-5 font-semibold text-[#111111]">
+              {backendHydrationError ? "Could not load cart" : "Loading..."}
             </p>
             {backendHydrationError ? (
               <button
@@ -161,7 +155,7 @@ export default function CartPage() {
             disabled
             className="mt-4 block w-full cursor-not-allowed rounded-lg bg-[#e0e0e0] py-3 text-center font-semibold text-[#666666]"
           >
-            Loading account cart
+            Loading...
           </button>
         ) : (
           <Link

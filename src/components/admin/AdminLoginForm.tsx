@@ -23,6 +23,8 @@ type Values = z.infer<typeof schema>;
 interface ApiLoginResponse {
   success: boolean;
   accessToken: string;
+  refreshToken?: string;
+  csrfToken?: string;
   user: {
     id: string;
     name: string;
@@ -88,7 +90,12 @@ export function AdminLoginForm() {
           return;
         }
 
-        persistAuthSession(result.accessToken, result.user);
+        persistAuthSession(
+          result.accessToken,
+          result.user,
+          result.csrfToken,
+          result.refreshToken
+        );
         toast.success("Success: signed in");
         router.replace(getRoleHome(result.user.role));
         router.refresh();

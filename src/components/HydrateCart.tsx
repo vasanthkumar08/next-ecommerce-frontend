@@ -16,12 +16,14 @@ import { fetchBackendCart } from "@/features/cart/cartBackend";
 import {
   pauseCartSync,
   resumeCartSync,
+  isCartSyncInFlight,
   setCartSyncBase,
   suppressNextCartSync,
 } from "@/features/cart/cartSync";
 import { captureFrontendException, captureFrontendMessage } from "@/lib/observability";
 
 export const CART_HYDRATION_RETRY_EVENT = "vasanthtrends:cart-hydration-retry";
+const cartRefreshIntervalMs = 1_500;
 
 export default function HydrateCart({
   children,
@@ -32,7 +34,9 @@ export default function HydrateCart({
   const userId = useAppSelector((state) => state.auth.user?.id);
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const authStatus = useAppSelector((state) => state.auth.status);
+  const backendRevision = useAppSelector((state) => state.cart.backendRevision);
   const hydrationRun = useRef(0);
+  const hydrationFetchInFlight = useRef(false);
   const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
@@ -60,21 +64,45 @@ export default function HydrateCart({
       return;
     }
 
-    const hydrateAuthenticatedCart = async () => {
+    const hydrateAuthenticatedCart = async (reason = "initial") => {
+      if (hydrationFetchInFlight.current) {
+        return;
+      }
+
+      if (reason !== "initial" && isCartSyncInFlight()) {
+        return;
+      }
+
+      hydrationFetchInFlight.current = true;
+
       // Authenticated cart ownership is backend-first. We pause automatic
       // persistence until the canonical user cart is loaded, so stale local
       // state cannot overwrite the multi-device backend cart.
       pauseCartSync();
 
-      dispatch(markBackendCartHydrationPending());
+      if (reason === "initial") {
+        dispatch(markBackendCartHydrationPending());
+      }
 
       try {
         const backendCart = await fetchBackendCart();
         if (cancelled || hydrationRun.current !== runId) return;
+
+        if (
+          reason !== "initial" &&
+          backendCart.revision !== null &&
+          backendCart.revision === backendRevision
+        ) {
+          resumeCartSync();
+          return;
+        }
+
         setCartSyncBase(backendCart.items, backendCart.revision);
+        suppressNextCartSync(backendCart.items);
         captureFrontendMessage("cart_hydration_success", {
           userId,
           revision: backendCart.revision,
+          reason,
         });
 
         dispatch(
@@ -102,15 +130,36 @@ export default function HydrateCart({
           suppressNextCartSync([]);
           resumeCartSync();
         }
+      } finally {
+        hydrationFetchInFlight.current = false;
       }
     };
 
     void hydrateAuthenticatedCart();
 
+    const refreshCart = () => {
+      if (document.visibilityState === "visible") {
+        void hydrateAuthenticatedCart("background_refresh");
+      }
+    };
+    const onFocus = () => void hydrateAuthenticatedCart("focus");
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void hydrateAuthenticatedCart("visibility");
+      }
+    };
+    const interval = window.setInterval(refreshCart, cartRefreshIntervalMs);
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [authStatus, dispatch, isAuthenticated, retryNonce, userId]);
+  }, [authStatus, backendRevision, dispatch, isAuthenticated, retryNonce, userId]);
 
   return <>{children}</>;
 }

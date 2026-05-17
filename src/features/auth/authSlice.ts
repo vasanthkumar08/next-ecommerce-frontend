@@ -48,7 +48,12 @@ export const login = createAuthThunk(
   ) => {
     try {
       const result: AuthResponse = await loginUser(data);
-      persistAuthSession(result.accessToken, result.user, result.csrfToken);
+      persistAuthSession(
+        result.accessToken,
+        result.user,
+        result.csrfToken,
+        result.refreshToken
+      );
       resumeCartSync();
       return result;
     } catch (err: unknown) {

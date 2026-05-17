@@ -4,6 +4,7 @@ import type { CartItem } from "./cartSlice";
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let syncPaused = false;
+let syncInFlight = false;
 let suppressedSnapshotKey: string | null = null;
 let baseProductIds: Set<string> | null = null;
 let baseQuantities: Map<string, number> | null = null;
@@ -64,6 +65,7 @@ export async function syncCartToBackendNow(
   isAuthenticated: boolean
 ): Promise<boolean> {
   if (!isAuthenticated) return false;
+  syncInFlight = true;
 
   try {
     const headers = {
@@ -185,6 +187,8 @@ export async function syncCartToBackendNow(
     }
     // Local cart remains available if backend sync is unavailable.
     return false;
+  } finally {
+    syncInFlight = false;
   }
 }
 
@@ -201,13 +205,10 @@ export function syncCartToBackend(items: CartItem[], isAuthenticated: boolean) {
 
   if (syncTimer) {
     clearTimeout(syncTimer);
+    syncTimer = null;
   }
 
-  syncTimer = setTimeout(() => {
-    void (async () => {
-      await syncCartToBackendNow(items, isAuthenticated);
-    })();
-  }, 400);
+  void syncCartToBackendNow(items, isAuthenticated);
 }
 
 export function pauseCartSync(): void {
@@ -239,4 +240,8 @@ export function setCartSyncBase(items: CartItem[], revision: number | null = nul
 
 export function isCartSyncPaused(): boolean {
   return syncPaused;
+}
+
+export function isCartSyncInFlight(): boolean {
+  return syncInFlight;
 }

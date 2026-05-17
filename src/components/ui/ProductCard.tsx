@@ -10,9 +10,7 @@ import { flyProductImageToCart } from "@/utils/flyToCart";
 import { openCartDrawer } from "@/utils/cartDrawerEvents";
 import {
   addWishlistItem,
-  addToWishlist,
   removeWishlistItem,
-  removeFromWishlist,
   selectWishlistIdSet,
 } from "@/features/wishlist/wishlistSlice";
 import { toast as sonnerToast } from "sonner";
@@ -62,9 +60,14 @@ function ProductCard({ product }: ProductCardProps) {
       return;
     }
 
+    if (authStatus === "loading" || authStatus === "unknown") {
+      sonnerToast.info("Restoring your session...");
+      return;
+    }
+
     if (!isLoggedIn) {
-      sonnerToast.error("Failed");
-      router.push(`/login?next=${encodeURIComponent("/cart")}`);
+      sonnerToast.info("Sign in to use your account cart.");
+      router.push(`/login?next=${encodeURIComponent("/shop/cart")}`);
       return;
     }
 
@@ -115,8 +118,8 @@ function ProductCard({ product }: ProductCardProps) {
         return;
       }
 
-      dispatch(removeFromWishlist(product.id));
-      sonnerToast.success("Success");
+      sonnerToast.info("Sign in to manage your wishlist.");
+      router.push(`/login?next=${encodeURIComponent("/shop/products")}`);
       return;
     }
 
@@ -131,9 +134,9 @@ function ProductCard({ product }: ProductCardProps) {
       return;
     }
 
-    dispatch(addToWishlist(product));
-    sonnerToast.success("Success");
-  }, [authStatus, dispatch, isLoggedIn, isWishlisted, product]);
+    sonnerToast.info("Sign in to manage your wishlist.");
+    router.push(`/login?next=${encodeURIComponent("/shop/products")}`);
+  }, [authStatus, dispatch, isLoggedIn, isWishlisted, product, router]);
 
   return (
     <BaseProductCard

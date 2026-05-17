@@ -95,10 +95,12 @@ export default function OrdersHistoryPage() {
   const loading = useAppSelector(selectOrdersLoading);
   const error = useAppSelector(selectOrdersError);
   const userId = useAppSelector((state) => state.auth.user?.id);
+  const authStatus = useAppSelector((state) => state.auth.status);
 
   useEffect(() => {
+    if (authStatus !== "authenticated" || !userId) return;
     void dispatch(loadOrders(userId));
-  }, [dispatch, userId]);
+  }, [authStatus, dispatch, userId]);
 
   const handleCancel = async (orderId: string, isDelivered?: boolean) => {
     if (isDelivered) {

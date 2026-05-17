@@ -35,9 +35,7 @@ export default function PersistCart() {
       backendHydrated &&
       backendHydratedUserId === userId;
 
-    if (!isAuthenticated) {
-      saveCart(items, null);
-    } else if (canPersistAuthenticatedCache) {
+    if (canPersistAuthenticatedCache) {
       saveCart(items, userId);
     }
 

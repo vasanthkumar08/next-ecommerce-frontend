@@ -2,7 +2,6 @@ import {
   createAsyncThunk,
   createSelector,
   createSlice,
-  PayloadAction,
 } from "@reduxjs/toolkit";
 import { Product } from "@/types/product";
 import type { RootState } from "@/store/store";
@@ -66,12 +65,12 @@ const wishlistSlice = createSlice({
   name: "wishlist",
   initialState,
   reducers: {
-    addToWishlist: (state, action: PayloadAction<Product>) => {
-      const exists = state.items.some((item) => item.id === action.payload.id);
-      if (!exists) state.items.push(action.payload);
+    addToWishlist: () => {
+      // Guest/device-local wishlist ownership is disabled. Authenticated
+      // wishlist changes must go through backend-protected thunks.
     },
-    removeFromWishlist: (state, action: PayloadAction<string>) => {
-      state.items = state.items.filter((item) => item.id !== action.payload);
+    removeFromWishlist: () => {
+      // Guest/device-local wishlist ownership is disabled.
     },
     clearWishlist: (state) => {
       state.items = [];

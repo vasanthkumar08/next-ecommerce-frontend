@@ -3,10 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import {
-  removeFromWishlist,
-  removeWishlistItem,
-} from "@/features/wishlist/wishlistSlice";
+import { removeWishlistItem } from "@/features/wishlist/wishlistSlice";
 import { addToCart } from "@/features/cart/cartSlice";
 import { useToastContext } from "@/context/ToastContext";
 import Badge from "@/components/ui/Badge";
@@ -31,19 +28,18 @@ export default function WishlistPage() {
   );
 
   const handleRemove = (id: string) => {
-    if (authStatus === "authenticated") {
-      void dispatch(removeWishlistItem(id));
-      toast.info("Success");
-      return;
-    }
-
-    dispatch(removeFromWishlist(id));
+    if (authStatus !== "authenticated") return;
+    void dispatch(removeWishlistItem(id));
     toast.info("Success");
   };
 
   const handleAddToCart = (product: (typeof items)[0]) => {
+    if (authStatus !== "authenticated") {
+      toast.info("Restoring your session...");
+      return;
+    }
+
     if (
-      authStatus === "authenticated" &&
       (!backendHydrated || backendHydratedUserId !== userId)
     ) {
       toast.info("Loading your account cart...");

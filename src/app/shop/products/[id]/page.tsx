@@ -20,9 +20,7 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { addToCart } from "@/features/cart/cartSlice";
 import {
   addWishlistItem,
-  addToWishlist,
   removeWishlistItem,
-  removeFromWishlist,
   selectWishlistIdSet,
 } from "@/features/wishlist/wishlistSlice";
 import { flyProductImageToCart } from "@/utils/flyToCart";
@@ -167,7 +165,7 @@ export default function ProductDetailsPage() {
       if (isLoggedIn) {
         void dispatch(removeWishlistItem(product.id));
       } else {
-        dispatch(removeFromWishlist(product.id));
+        router.push(`/login?next=${encodeURIComponent(`/shop/products/${product.id}`)}`);
       }
       return;
     }
@@ -177,8 +175,8 @@ export default function ProductDetailsPage() {
       return;
     }
 
-    dispatch(addToWishlist(product));
-  }, [authStatus, dispatch, isLoggedIn, isWishlisted, product]);
+    router.push(`/login?next=${encodeURIComponent(`/shop/products/${product.id}`)}`);
+  }, [authStatus, dispatch, isLoggedIn, isWishlisted, product, router]);
 
   const averageRating = useMemo(() => {
     if (reviews.length === 0) return product?.rating.rate ?? 0;

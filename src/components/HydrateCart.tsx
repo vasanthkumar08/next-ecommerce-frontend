@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   hydrateBackendCart,
@@ -10,12 +10,6 @@ import {
   resetBackendCartHydration,
 } from "@/features/cart/cartSlice";
 import {
-  clearGuestCart,
-  hasCompletedGuestMerge,
-  loadCart,
-  loadGuestCart,
-  markGuestMergeCompleted,
-  mergeCartItems,
   saveCart,
 } from "@/features/cart/cartPersist";
 import { fetchBackendCart } from "@/features/cart/cartBackend";
@@ -24,8 +18,9 @@ import {
   resumeCartSync,
   setCartSyncBase,
   suppressNextCartSync,
-  syncCartToBackendNow,
 } from "@/features/cart/cartSync";
+
+export const CART_HYDRATION_RETRY_EVENT = "vasanthtrends:cart-hydration-retry";
 
 export default function HydrateCart({
   children,
@@ -37,6 +32,13 @@ export default function HydrateCart({
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const authStatus = useAppSelector((state) => state.auth.status);
   const hydrationRun = useRef(0);
+  const [retryNonce, setRetryNonce] = useState(0);
+
+  useEffect(() => {
+    const onRetry = () => setRetryNonce((value) => value + 1);
+    window.addEventListener(CART_HYDRATION_RETRY_EVENT, onRetry);
+    return () => window.removeEventListener(CART_HYDRATION_RETRY_EVENT, onRetry);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,21 +50,21 @@ export default function HydrateCart({
     }
 
     if (!isAuthenticated || !userId) {
-      // Logout should switch the visible cart to the guest cart without
-      // deleting or overwriting the authenticated user's backend cart.
+      // Ecommerce data is account-owned only. An unauthenticated browser must
+      // not create or display a device-local cart that could later be mistaken
+      // for canonical user data.
       setCartSyncBase([]);
       dispatch(resetBackendCartHydration());
-      dispatch(hydrateCart(loadCart(null)));
+      dispatch(hydrateCart([]));
       return;
     }
 
     const hydrateAuthenticatedCart = async () => {
       // Authenticated cart ownership is backend-first. We pause automatic
-      // persistence while login hydration merges guest items so stale local
+      // persistence until the canonical user cart is loaded, so stale local
       // state cannot overwrite the multi-device backend cart.
       pauseCartSync();
 
-      const guestCart = loadGuestCart();
       dispatch(markBackendCartHydrationPending());
 
       try {
@@ -70,38 +72,21 @@ export default function HydrateCart({
         if (cancelled || hydrationRun.current !== runId) return;
         setCartSyncBase(backendCart);
 
-        const shouldMergeGuest =
-          guestCart.length > 0 && !hasCompletedGuestMerge(userId, guestCart);
-        const mergedCart =
-          shouldMergeGuest
-            ? mergeCartItems(backendCart, guestCart)
-            : backendCart;
-
         dispatch(
           hydrateBackendCart({
-            items: mergedCart,
+            items: backendCart,
             userId,
           })
         );
-        saveCart(mergedCart, userId);
-
-        if (shouldMergeGuest) {
-          const synced = await syncCartToBackendNow(mergedCart, true);
-
-          if (!cancelled && hydrationRun.current === runId && synced) {
-            markGuestMergeCompleted(userId, guestCart);
-            clearGuestCart();
-          }
-        }
+        saveCart(backendCart, userId);
 
         if (!cancelled && hydrationRun.current === runId) {
           resumeCartSync();
         }
       } catch {
         if (!cancelled && hydrationRun.current === runId) {
-          // Keep guest cart if merge failed; it can be retried on the next
-          // successful authenticated hydration. Do not hydrate a stale
-          // authenticated local cart or sync anything to the backend.
+          // Do not hydrate a stale authenticated local cart or sync anything
+          // to the backend when the canonical backend cart could not load.
           dispatch(markBackendCartHydrationFailed());
           suppressNextCartSync([]);
           resumeCartSync();
@@ -114,7 +99,7 @@ export default function HydrateCart({
     return () => {
       cancelled = true;
     };
-  }, [authStatus, dispatch, isAuthenticated, userId]);
+  }, [authStatus, dispatch, isAuthenticated, retryNonce, userId]);
 
   return <>{children}</>;
 }

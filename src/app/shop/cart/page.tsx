@@ -2,13 +2,12 @@
 
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { addToCart, decreaseQuantity, removeFromCart } from "@/features/cart/cartSlice";
+import { CART_HYDRATION_RETRY_EVENT } from "@/components/HydrateCart";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export default function CartPage() {
   const dispatch = useAppDispatch();
-  const router = useRouter();
   const cartItems = useAppSelector((state) => state.cart.items);
   const authStatus = useAppSelector((state) => state.auth.status);
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
@@ -52,7 +51,10 @@ export default function CartPage() {
             </p>
             {backendHydrationError ? (
               <button
-                onClick={() => router.refresh()}
+                type="button"
+                onClick={() =>
+                  window.dispatchEvent(new Event(CART_HYDRATION_RETRY_EVENT))
+                }
                 className="inline-block rounded-lg bg-[#ff9900] px-6 py-2 font-semibold text-white transition hover:bg-[#e88a00]"
               >
                 Retry
@@ -153,12 +155,22 @@ export default function CartPage() {
           <span>Total</span>
           <span>${total.toFixed(2)}</span>
         </div>
-        <Link
-          href="/shop/checkout"
-          className="mt-4 block rounded-lg bg-[#ff9900] py-3 text-center font-semibold text-white transition hover:bg-[#e88a00]"
-        >
-          Proceed to Checkout
-        </Link>
+        {waitingForBackendCart ? (
+          <button
+            type="button"
+            disabled
+            className="mt-4 block w-full cursor-not-allowed rounded-lg bg-[#e0e0e0] py-3 text-center font-semibold text-[#666666]"
+          >
+            Loading account cart
+          </button>
+        ) : (
+          <Link
+            href="/shop/checkout"
+            className="mt-4 block rounded-lg bg-[#ff9900] py-3 text-center font-semibold text-white transition hover:bg-[#e88a00]"
+          >
+            Proceed to Checkout
+          </Link>
+        )}
         <Link
           href="/shop/products"
           className="mt-2 block text-center text-sm text-[#ff6700] hover:underline"

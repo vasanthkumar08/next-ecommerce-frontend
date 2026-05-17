@@ -118,6 +118,10 @@ export default function CheckoutPage() {
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const authHydrated = useAppSelector((state) => state.auth.hydrated);
   const authStatus = useAppSelector((state) => state.auth.status);
+  const backendHydrated = useAppSelector((state) => state.cart.backendHydrated);
+  const backendHydratedUserId = useAppSelector(
+    (state) => state.cart.backendHydratedUserId
+  );
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -164,7 +168,9 @@ export default function CheckoutPage() {
   );
 
   useEffect(() => {
-    if (!authHydrated || !isAuthenticated) return;
+    if (!authHydrated || authStatus !== "authenticated" || !isAuthenticated) {
+      return;
+    }
 
     api
       .get<{ data: Address[] }>("/v1/addresses")
@@ -174,7 +180,7 @@ export default function CheckoutPage() {
         if (defaultAddress) setSelectedAddressId(defaultAddress._id);
       })
       .catch(() => setSavedAddresses([]));
-  }, [authHydrated, isAuthenticated]);
+  }, [authHydrated, authStatus, isAuthenticated]);
 
   useEffect(() => {
     if (!selectedAddressId) return;
@@ -365,6 +371,11 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (!backendHydrated || backendHydratedUserId !== user?.id) {
+      setError("Loading your backend cart. Please try again in a moment.");
+      return;
+    }
+
     if (!shippingAddress || !paymentMethod || !validatePaymentDetails()) {
       setError("Complete every checkout step before placing your order.");
       return;
@@ -400,6 +411,8 @@ export default function CheckoutPage() {
     authHydrated,
     authStatus,
     isAuthenticated,
+    backendHydrated,
+    backendHydratedUserId,
     items,
     openRazorpay,
     paymentMethod,
@@ -409,6 +422,26 @@ export default function CheckoutPage() {
     user,
     validatePaymentDetails,
   ]);
+
+  if (
+    authStatus === "authenticated" &&
+    isAuthenticated &&
+    (!backendHydrated || backendHydratedUserId !== user?.id)
+  ) {
+    return (
+      <div className="min-h-screen bg-white px-4 py-16 text-center">
+        <div className="mx-auto max-w-md rounded-3xl border border-white/70 bg-white/80 p-8 shadow-[0_24px_80px_rgba(37,99,235,0.12)] backdrop-blur-xl">
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-[#ff6700] border-t-transparent" />
+          <h2 className="text-2xl font-bold text-[#111111]">
+            Loading account cart
+          </h2>
+          <p className="mt-2 text-sm text-[#64748b]">
+            Checkout uses your backend cart only. Please wait while it loads.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!items.length && !success) {
     return (

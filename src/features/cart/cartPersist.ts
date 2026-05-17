@@ -3,13 +3,7 @@ import { CartItem } from "./cartSlice";
 const objectIdPattern = /^[a-f\d]{24}$/i;
 
 const getCartKey = (userId?: string | null) =>
-  userId ? `cart:${userId}` : "cart:guest";
-
-const getGuestMergeKey = (userId: string, items: CartItem[]) =>
-  `cart:guest-merge:${userId}:${items
-    .map((item) => `${item.id}:${item.quantity}`)
-    .sort()
-    .join("|")}`;
+  userId ? `cart:${userId}` : null;
 
 const parseCart = (data: string | null): CartItem[] =>
   data ? (JSON.parse(data) as CartItem[]) : [];
@@ -41,45 +35,21 @@ export const mergeCartItems = (primary: CartItem[], secondary: CartItem[]) => {
 
 export const saveCart = (state: CartItem[], userId?: string | null) => {
   if (typeof window === "undefined") return;
-  localStorage.setItem(getCartKey(userId), JSON.stringify(sanitizeCart(state)));
-};
-
-export const loadGuestCart = (): CartItem[] => {
-  if (typeof window === "undefined") return [];
-  return sanitizeCart(parseCart(localStorage.getItem(getCartKey(null))));
-};
-
-export const clearGuestCart = (): void => {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(getCartKey(null));
-};
-
-export const hasCompletedGuestMerge = (
-  userId: string,
-  items: CartItem[]
-): boolean => {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem(getGuestMergeKey(userId, sanitizeCart(items))) === "1";
-};
-
-export const markGuestMergeCompleted = (
-  userId: string,
-  items: CartItem[]
-): void => {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(getGuestMergeKey(userId, sanitizeCart(items)), "1");
+  const key = getCartKey(userId);
+  if (!key) return;
+  localStorage.setItem(key, JSON.stringify(sanitizeCart(state)));
 };
 
 export const loadCart = (userId?: string | null): CartItem[] | undefined => {
   if (typeof window === "undefined") return undefined;
+  const key = getCartKey(userId);
+  if (!key) return [];
 
-  const userCart = sanitizeCart(parseCart(localStorage.getItem(getCartKey(userId))));
+  const userCart = sanitizeCart(parseCart(localStorage.getItem(key)));
 
-  // Guest cart ownership is intentionally separate from authenticated cart
-  // ownership. Login hydration performs the backend merge and only clears the
-  // guest cart after the merged cart has been synced successfully.
+  // This cache is display-only and is never allowed to create authenticated
+  // ecommerce state. Backend hydration remains the only cart authority.
   if (userCart.length > 0) return userCart;
 
-  const legacyCart = localStorage.getItem("cart");
-  return legacyCart ? sanitizeCart(JSON.parse(legacyCart) as CartItem[]) : undefined;
+  return [];
 };

@@ -132,6 +132,10 @@ export default function OrdersHistoryPage() {
       void dispatch(loadOrders(userId));
     }
 
+    if (result.payload === "Order could not be cancelled") {
+      void dispatch(loadOrders(userId));
+    }
+
     toast.error((result.payload as string | undefined) ?? "Could not cancel order");
   };
 

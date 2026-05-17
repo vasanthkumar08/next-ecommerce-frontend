@@ -255,8 +255,7 @@ export default function AuthHydrator() {
         persistAuthSession(
           response.accessToken,
           response.user,
-          response.csrfToken,
-          response.refreshToken
+          response.csrfToken
         );
         markPerf("auth-hydration:refresh-end", {
           status: 200,
@@ -312,8 +311,7 @@ export default function AuthHydrator() {
             persistAuthSession(
               session.accessToken,
               session.user,
-              session.csrfToken,
-              session.refreshToken
+              session.csrfToken
             );
             dispatch(
               hydrateAuth({

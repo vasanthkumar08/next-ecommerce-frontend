@@ -6,7 +6,6 @@ import {
   getCsrfToken,
   getAuthSessionEpoch,
   getStoredAccessToken,
-  getStoredRefreshToken,
   persistAuthSession,
   recordAuthActivity,
 } from "@/features/auth/authStorage";
@@ -74,10 +73,9 @@ const shouldRetryRefreshError = (error: unknown): boolean => {
 };
 
 const postRefresh = async (apiUrl: string): Promise<AuthResponse> => {
-  const refreshToken = getStoredRefreshToken();
   const response = await axios.post<AuthResponse>(
     `${apiUrl}/v1/auth/refresh`,
-    refreshToken ? { refreshToken } : {},
+    {},
     { withCredentials: true }
   );
 
@@ -257,8 +255,7 @@ api.interceptors.response.use(
         persistAuthSession(
           refreshedSession.accessToken,
           refreshedSession.user,
-          refreshedSession.csrfToken,
-          refreshedSession.refreshToken
+          refreshedSession.csrfToken
         );
 
         originalRequest.headers = originalRequest.headers ?? {};

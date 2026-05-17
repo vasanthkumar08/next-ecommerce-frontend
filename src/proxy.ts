@@ -110,6 +110,7 @@ async function refreshSession(
     response.cookies.set(adminTokenCookie, body.accessToken, {
       path: "/",
       maxAge: accessTokenMaxAge,
+      httpOnly: true,
       sameSite: "lax",
       secure: nextUrl.protocol === "https:",
     });

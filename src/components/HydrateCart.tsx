@@ -26,7 +26,8 @@ import {
 import { captureFrontendException, captureFrontendMessage } from "@/lib/observability";
 
 export const CART_HYDRATION_RETRY_EVENT = "vasanthtrends:cart-hydration-retry";
-const cartRefreshIntervalMs = 500;
+const cartRefreshInitialDelayMs = 15_000;
+const cartRefreshMaxDelayMs = 120_000;
 
 export default function HydrateCart({
   children,
@@ -165,25 +166,46 @@ export default function HydrateCart({
 
     void hydrateAuthenticatedCart();
 
-    const refreshCart = () => {
-      if (document.visibilityState === "visible") {
-        void hydrateAuthenticatedCart("background_refresh");
+    let refreshDelayMs = cartRefreshInitialDelayMs;
+    let refreshTimer: number | null = null;
+
+    const scheduleRefresh = () => {
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
       }
+
+      refreshTimer = window.setTimeout(() => {
+        if (document.visibilityState === "visible") {
+          void hydrateAuthenticatedCart("background_refresh");
+          refreshDelayMs = Math.min(refreshDelayMs * 2, cartRefreshMaxDelayMs);
+        }
+
+        scheduleRefresh();
+      }, refreshDelayMs);
     };
-    const onFocus = () => void hydrateAuthenticatedCart("focus");
+
+    const onFocus = () => {
+      refreshDelayMs = cartRefreshInitialDelayMs;
+      void hydrateAuthenticatedCart("focus");
+      scheduleRefresh();
+    };
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
+        refreshDelayMs = cartRefreshInitialDelayMs;
         void hydrateAuthenticatedCart("visibility");
+        scheduleRefresh();
       }
     };
-    const interval = window.setInterval(refreshCart, cartRefreshIntervalMs);
+    scheduleRefresh();
 
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+      }
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };

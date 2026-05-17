@@ -9,7 +9,6 @@ const CSRF_SESSION_STORAGE_KEY = "vasanthtrends:csrf-token";
 const CSRF_LOCAL_STORAGE_KEY = "vasanthtrends:csrf-token:persistent";
 const ACCESS_TOKEN_SESSION_STORAGE_KEY = "vasanthtrends:access-token";
 const ACCESS_TOKEN_LOCAL_STORAGE_KEY = "vasanthtrends:access-token:persistent";
-const REFRESH_TOKEN_LOCAL_STORAGE_KEY = "vasanthtrends:refresh-token";
 const USER_LOCAL_STORAGE_KEY = "vasanthtrends:user";
 const LAST_ACTIVITY_LOCAL_STORAGE_KEY = "vasanthtrends:last-activity-at";
 const AUTH_BROADCAST_CHANNEL = "vasanthtrends:auth";
@@ -164,13 +163,11 @@ const setStoredCsrfToken = (csrfToken: string | undefined): void => {
 
 const setStoredAccessToken = (accessToken: string | undefined): void => {
   if (!canUseBrowser() || !accessToken) return;
+  // Access tokens are temporary fallback credentials for cookie-hostile
+  // browsers. Keep them session-scoped only; refresh remains backend-cookie
+  // authority and must never be persisted in JS-readable storage.
   window.sessionStorage.setItem(ACCESS_TOKEN_SESSION_STORAGE_KEY, accessToken);
-  window.localStorage.setItem(ACCESS_TOKEN_LOCAL_STORAGE_KEY, accessToken);
-};
-
-const setStoredRefreshToken = (refreshToken: string | undefined): void => {
-  if (!canUseBrowser() || !refreshToken) return;
-  window.localStorage.setItem(REFRESH_TOKEN_LOCAL_STORAGE_KEY, refreshToken);
+  window.localStorage.removeItem(ACCESS_TOKEN_LOCAL_STORAGE_KEY);
 };
 
 const clearStoredCsrfToken = (): void => {
@@ -186,8 +183,11 @@ const clearStoredAccessToken = (): void => {
 };
 
 const clearStoredRefreshToken = (): void => {
+  // Older builds stored refresh tokens in localStorage. The backend HTTP-only
+  // refresh cookie is now the only refresh-token authority, so this remains as
+  // one-way cleanup for users upgrading from earlier frontend bundles.
   if (!canUseBrowser()) return;
-  window.localStorage.removeItem(REFRESH_TOKEN_LOCAL_STORAGE_KEY);
+  window.localStorage.removeItem("vasanthtrends:refresh-token");
 };
 
 const setStoredUser = (user: User): void => {
@@ -278,14 +278,12 @@ export const markStaleTabLoggedOut = (reason = "stale_tab"): void => {
 
 export const getStoredAccessToken = (): string | null => {
   if (!canUseBrowser()) return null;
-  return (
-    window.sessionStorage.getItem(ACCESS_TOKEN_SESSION_STORAGE_KEY) ??
-    window.localStorage.getItem(ACCESS_TOKEN_LOCAL_STORAGE_KEY)
-  );
+  window.localStorage.removeItem(ACCESS_TOKEN_LOCAL_STORAGE_KEY);
+  return window.sessionStorage.getItem(ACCESS_TOKEN_SESSION_STORAGE_KEY);
 };
 export const getStoredRefreshToken = (): string | null => {
-  if (!canUseBrowser()) return null;
-  return window.localStorage.getItem(REFRESH_TOKEN_LOCAL_STORAGE_KEY);
+  clearStoredRefreshToken();
+  return null;
 };
 export const getStoredUser = (): User | null => {
   if (!canUseBrowser()) return null;
@@ -322,14 +320,13 @@ export const getStoredUser = (): User | null => {
 export const persistAuthSession = (
   accessToken: string,
   user: User,
-  csrfToken?: string,
-  refreshToken?: string
+  csrfToken?: string
 ) => {
   // Cookies remain the preferred credential path. The session-scoped access
-  // token is a fallback for browsers that block third-party API-domain cookies
-  // in the Vercel frontend -> Render backend deployment.
+  // token is a short-lived fallback for browsers that block API-domain cookies.
+  // Refresh tokens are never stored in JS-readable storage.
   setStoredAccessToken(accessToken);
-  setStoredRefreshToken(refreshToken);
+  clearStoredRefreshToken();
   setStoredUser(user);
   setStoredCsrfToken(csrfToken);
   logoutCompleted = false;

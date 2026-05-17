@@ -51,8 +51,7 @@ export const login = createAuthThunk(
       persistAuthSession(
         result.accessToken,
         result.user,
-        result.csrfToken,
-        result.refreshToken
+        result.csrfToken
       );
       resumeCartSync();
       return result;

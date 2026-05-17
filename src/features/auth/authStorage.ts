@@ -7,6 +7,8 @@ export const AUTH_SESSION_STORAGE_KEY = "vasanthtrends:auth-session-event";
 const CSRF_COOKIE_NAME = "csrfToken";
 const CSRF_SESSION_STORAGE_KEY = "vasanthtrends:csrf-token";
 const ACCESS_TOKEN_SESSION_STORAGE_KEY = "vasanthtrends:access-token";
+const ACCESS_TOKEN_LOCAL_STORAGE_KEY = "vasanthtrends:access-token:persistent";
+const USER_LOCAL_STORAGE_KEY = "vasanthtrends:user";
 const AUTH_BROADCAST_CHANNEL = "vasanthtrends:auth";
 let logoutRequest: Promise<void> | null = null;
 let logoutCompleted = false;
@@ -154,6 +156,7 @@ const setStoredCsrfToken = (csrfToken: string | undefined): void => {
 const setStoredAccessToken = (accessToken: string | undefined): void => {
   if (!canUseBrowser() || !accessToken) return;
   window.sessionStorage.setItem(ACCESS_TOKEN_SESSION_STORAGE_KEY, accessToken);
+  window.localStorage.setItem(ACCESS_TOKEN_LOCAL_STORAGE_KEY, accessToken);
 };
 
 const clearStoredCsrfToken = (): void => {
@@ -164,6 +167,17 @@ const clearStoredCsrfToken = (): void => {
 const clearStoredAccessToken = (): void => {
   if (!canUseBrowser()) return;
   window.sessionStorage.removeItem(ACCESS_TOKEN_SESSION_STORAGE_KEY);
+  window.localStorage.removeItem(ACCESS_TOKEN_LOCAL_STORAGE_KEY);
+};
+
+const setStoredUser = (user: User): void => {
+  if (!canUseBrowser()) return;
+  window.localStorage.setItem(USER_LOCAL_STORAGE_KEY, JSON.stringify(user));
+};
+
+const clearStoredUser = (): void => {
+  if (!canUseBrowser()) return;
+  window.localStorage.removeItem(USER_LOCAL_STORAGE_KEY);
 };
 
 export const getCsrfToken = (): string | null =>
@@ -174,6 +188,7 @@ export const clearLocalAuthSession = () => {
   // The client intentionally clears only in-memory state, reducing XSS impact.
   clearStoredCsrfToken();
   clearStoredAccessToken();
+  clearStoredUser();
   authSessionEpoch += 1;
   notifyAuthSessionChanged("logout");
 };
@@ -181,6 +196,7 @@ export const clearLocalAuthSession = () => {
 export const expireLocalAuthSession = (reason = "refresh_failed"): void => {
   clearStoredCsrfToken();
   clearStoredAccessToken();
+  clearStoredUser();
   logoutCompleted = true;
   authSessionEpoch += 1;
   notifyAuthSessionChanged("refresh_failed", reason);
@@ -189,6 +205,7 @@ export const expireLocalAuthSession = (reason = "refresh_failed"): void => {
 export const markStaleTabLoggedOut = (reason = "stale_tab"): void => {
   clearStoredCsrfToken();
   clearStoredAccessToken();
+  clearStoredUser();
   logoutCompleted = true;
   authSessionEpoch += 1;
   notifyAuthSessionChanged("stale_tab_logout", reason);
@@ -196,19 +213,52 @@ export const markStaleTabLoggedOut = (reason = "stale_tab"): void => {
 
 export const getStoredAccessToken = (): string | null => {
   if (!canUseBrowser()) return null;
-  return window.sessionStorage.getItem(ACCESS_TOKEN_SESSION_STORAGE_KEY);
+  return (
+    window.sessionStorage.getItem(ACCESS_TOKEN_SESSION_STORAGE_KEY) ??
+    window.localStorage.getItem(ACCESS_TOKEN_LOCAL_STORAGE_KEY)
+  );
 };
-export const getStoredUser = (): User | null => null;
+export const getStoredUser = (): User | null => {
+  if (!canUseBrowser()) return null;
+
+  try {
+    const raw = window.localStorage.getItem(USER_LOCAL_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<User>;
+
+    if (
+      typeof parsed.id === "string" &&
+      typeof parsed.name === "string" &&
+      typeof parsed.email === "string" &&
+      (parsed.role === "user" ||
+        parsed.role === "admin" ||
+        parsed.role === "manager")
+    ) {
+      return {
+        id: parsed.id,
+        name: parsed.name,
+        email: parsed.email,
+        role: parsed.role,
+      };
+    }
+  } catch {
+    clearStoredUser();
+  }
+
+  return null;
+};
 
 export const persistAuthSession = (
   accessToken: string,
-  _user: User,
+  user: User,
   csrfToken?: string
 ) => {
   // Cookies remain the preferred credential path. The session-scoped access
   // token is a fallback for browsers that block third-party API-domain cookies
   // in the Vercel frontend -> Render backend deployment.
   setStoredAccessToken(accessToken);
+  setStoredUser(user);
   setStoredCsrfToken(csrfToken);
   logoutCompleted = false;
   lastAuthSuccessAt = Date.now();

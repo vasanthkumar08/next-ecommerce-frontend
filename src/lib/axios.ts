@@ -46,6 +46,15 @@ export const isConfirmedInvalidRefreshError = (error: unknown): boolean => {
   );
 };
 
+const isMissingRefreshCookieError = (error: unknown): boolean => {
+  if (!axios.isAxiosError<ApiErrorBody>(error)) return false;
+
+  return (
+    error.response?.status === 401 &&
+    String(error.response?.data?.message ?? "").toLowerCase().includes("no refresh token")
+  );
+};
+
 const shouldRetryRefreshError = (error: unknown): boolean => {
   if (isConfirmedInvalidRefreshError(error)) return false;
 
@@ -136,16 +145,22 @@ export const refreshAuthSession = async () => {
       return session;
     })
     .catch((error: unknown) => {
-      consecutiveRefreshFailures += 1;
+      const missingRefreshCookie = isMissingRefreshCookieError(error);
 
-      if (consecutiveRefreshFailures >= refreshCircuitBreakerThreshold) {
-        refreshCircuitOpenUntil = Date.now() + refreshCircuitBreakerMs;
-        captureFrontendMessage("refresh_circuit_opened", {
-          failures: consecutiveRefreshFailures,
-          cooldownMs: refreshCircuitBreakerMs,
-        });
-      } else {
-        refreshCircuitOpenUntil = Date.now() + refreshCooldownMs;
+      if (!missingRefreshCookie) {
+        consecutiveRefreshFailures += 1;
+      }
+
+      if (!missingRefreshCookie) {
+        if (consecutiveRefreshFailures >= refreshCircuitBreakerThreshold) {
+          refreshCircuitOpenUntil = Date.now() + refreshCircuitBreakerMs;
+          captureFrontendMessage("refresh_circuit_opened", {
+            failures: consecutiveRefreshFailures,
+            cooldownMs: refreshCircuitBreakerMs,
+          });
+        } else {
+          refreshCircuitOpenUntil = Date.now() + refreshCooldownMs;
+        }
       }
 
       if (process.env.NODE_ENV !== "production") {
@@ -167,13 +182,16 @@ export const refreshAuthSession = async () => {
         : undefined;
 
       if (
-        status === 401 ||
+        (status === 401 && !isMissingRefreshCookieError(error)) ||
         status === 403 ||
         code === "REFRESH_TOKEN_STALE" ||
         code === "REFRESH_REUSE_DETECTED"
       ) {
         expireLocalAuthSession(String(code ?? status ?? "refresh_failed"));
-      } else if (consecutiveRefreshFailures >= refreshCircuitBreakerThreshold) {
+      } else if (
+        !missingRefreshCookie &&
+        consecutiveRefreshFailures >= refreshCircuitBreakerThreshold
+      ) {
         expireLocalAuthSession("refresh_circuit_breaker");
       }
 

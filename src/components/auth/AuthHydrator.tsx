@@ -14,6 +14,8 @@ import {
   createAuthBroadcastChannel,
   getAuthSessionEpoch,
   getPostLoginRefreshDelayMs,
+  getStoredAccessToken,
+  getStoredUser,
   hasCompletedLogout,
   parseAuthSessionEvent,
   persistAuthSession,
@@ -26,11 +28,61 @@ import type { AuthResponse } from "@/features/auth/auth.api";
 
 let appLoadRefreshPromise: Promise<AuthResponse> | null = null;
 
+interface MeResponse {
+  success: boolean;
+  data?: {
+    _id?: string;
+    id?: string;
+    name?: string;
+    email?: string;
+    role?: "admin" | "user" | "manager";
+  };
+}
+
 const getAppLoadRefreshPromise = (): Promise<AuthResponse> => {
   appLoadRefreshPromise ??= refreshAuthSession().finally(() => {
     appLoadRefreshPromise = null;
   });
   return appLoadRefreshPromise;
+};
+
+const hydrateFromStoredAccessToken = async (
+  apiUrl: string
+): Promise<AuthResponse | null> => {
+  const accessToken = getStoredAccessToken();
+
+  if (!accessToken) return null;
+
+  const response = await axios.get<MeResponse>(`${apiUrl}/v1/auth/me`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    withCredentials: true,
+  });
+
+  const user = response.data.data;
+  const id = user?._id ?? user?.id;
+
+  if (
+    !response.data.success ||
+    typeof id !== "string" ||
+    typeof user?.name !== "string" ||
+    typeof user.email !== "string" ||
+    (user.role !== "admin" && user.role !== "manager" && user.role !== "user")
+  ) {
+    return null;
+  }
+
+  return {
+    success: true,
+    accessToken,
+    user: {
+      id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+  };
 };
 
 export default function AuthHydrator() {
@@ -116,6 +168,18 @@ export default function AuthHydrator() {
     }
 
     const runHydration = async () => {
+      const storedAccessToken = getStoredAccessToken();
+      const storedUser = getStoredUser();
+
+      if (storedAccessToken && storedUser) {
+        dispatch(
+          hydrateAuth({
+            user: storedUser,
+            accessToken: storedAccessToken,
+          })
+        );
+      }
+
       if (shouldSkipRefreshAfterRecentLogin()) {
         if (process.env.NODE_ENV !== "production") {
           console.info("auth_hydration", {
@@ -197,7 +261,7 @@ export default function AuthHydrator() {
           });
         }
       })
-      .catch((error: unknown) => {
+      .catch(async (error: unknown) => {
         if (cancelled) return;
         if (hasCompletedLogout() || getAuthSessionEpoch() !== hydrationEpoch) {
           if (process.env.NODE_ENV !== "production") {
@@ -214,15 +278,48 @@ export default function AuthHydrator() {
           ? error.response?.status
           : undefined;
 
-        if (isConfirmedInvalidRefreshError(error) || status === 401 || status === 403) {
-          dispatch(hydrateAuth({ user: null, accessToken: null }));
-        } else {
-          // A failed refresh means the browser currently has no usable backend
-          // session. It is not a logout event and must not clear cookies,
-          // revoke sessions, emit global logout-style auth events, or redirect
-          // immediately. Mobile browsers can expose cookies to XHR slightly
-          // after Set-Cookie is accepted, so this is an unknown state.
-          dispatch(markAuthUnknown());
+        try {
+          const session = await hydrateFromStoredAccessToken(apiUrl);
+
+          if (cancelled) return;
+
+          if (session) {
+            persistAuthSession(
+              session.accessToken,
+              session.user,
+              session.csrfToken
+            );
+            dispatch(
+              hydrateAuth({
+                user: session.user,
+                accessToken: session.accessToken,
+              })
+            );
+          } else if (
+            isConfirmedInvalidRefreshError(error) ||
+            status === 401 ||
+            status === 403
+          ) {
+            dispatch(hydrateAuth({ user: null, accessToken: null }));
+          } else {
+            // A failed refresh means the browser currently has no usable
+            // cookie session. It is not a logout event and must not clear
+            // cookies, revoke sessions, emit logout-style auth events, or
+            // redirect immediately.
+            dispatch(markAuthUnknown());
+          }
+        } catch {
+          if (cancelled) return;
+
+          if (
+            isConfirmedInvalidRefreshError(error) ||
+            status === 401 ||
+            status === 403
+          ) {
+            dispatch(hydrateAuth({ user: null, accessToken: null }));
+          } else {
+            dispatch(markAuthUnknown());
+          }
         }
 
         markPerf("auth-hydration:refresh-end", { status: status ?? 0 });

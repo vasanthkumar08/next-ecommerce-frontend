@@ -8,6 +8,7 @@ import {
   getStoredAccessToken,
   persistAuthSession,
   recordAuthActivity,
+  syncFirstPartyAuthSession,
 } from "@/features/auth/authStorage";
 import type { AuthResponse } from "@/features/auth/auth.api";
 import { captureFrontendException, captureFrontendMessage } from "@/lib/observability";
@@ -122,7 +123,7 @@ export const refreshAuthSession = async () => {
       await sleep(700);
       return postRefresh(apiUrl);
     })
-    .then((session) => {
+    .then(async (session) => {
       consecutiveRefreshFailures = 0;
       refreshCircuitOpenUntil = 0;
 
@@ -142,6 +143,12 @@ export const refreshAuthSession = async () => {
       }
       captureFrontendMessage("auth_refresh_success", {
         hasCsrfToken: Boolean(session.csrfToken),
+      });
+
+      await syncFirstPartyAuthSession(session.accessToken).catch((error) => {
+        captureFrontendException(error, {
+          area: "auth_session_bridge",
+        });
       });
 
       return session;

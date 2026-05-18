@@ -7,7 +7,10 @@ import { useCallback, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { persistAuthSession } from "@/features/auth/authStorage";
+import {
+  persistAuthSession,
+  syncFirstPartyAuthSession,
+} from "@/features/auth/authStorage";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { getApiBaseUrl } from "@/lib/apiUrl";
@@ -94,6 +97,7 @@ export function AdminLoginForm() {
           result.user,
           result.csrfToken
         );
+        await syncFirstPartyAuthSession(result.accessToken);
         toast.success("Success: signed in");
         router.replace(getRoleHome(result.user.role));
         router.refresh();

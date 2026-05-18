@@ -336,6 +336,31 @@ export const persistAuthSession = (
   notifyAuthSessionChanged("session_updated");
 };
 
+export const syncFirstPartyAuthSession = async (
+  accessToken: string
+): Promise<void> => {
+  if (!canUseBrowser()) return;
+
+  const response = await fetch("/api/auth/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ accessToken }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Session bridge failed with status ${response.status}`);
+  }
+};
+
+export const clearFirstPartyAuthSession = async (): Promise<void> => {
+  if (!canUseBrowser()) return;
+
+  await fetch("/api/auth/session", {
+    method: "DELETE",
+    keepalive: true,
+  }).catch(() => undefined);
+};
+
 export const getAuthSessionEpoch = (): number => authSessionEpoch;
 export const hasCompletedLogout = (): boolean => logoutCompleted;
 export const getPostLoginRefreshDelayMs = (): number =>
@@ -375,6 +400,7 @@ export const clearAuthSession = async (source = "unknown"): Promise<void> => {
   });
 
   clearLocalAuthSession();
+  await clearFirstPartyAuthSession();
 
   if (!apiUrl) {
     logoutCompleted = true;

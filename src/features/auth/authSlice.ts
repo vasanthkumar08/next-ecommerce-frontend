@@ -9,6 +9,7 @@ import {
 import {
   clearAuthSession,
   persistAuthSession,
+  syncFirstPartyAuthSession,
 } from "./authStorage";
 import { markPerf, measurePerf } from "@/lib/perf";
 import { pauseCartSync, resumeCartSync } from "@/features/cart/cartSync";
@@ -53,6 +54,7 @@ export const login = createAuthThunk(
         result.user,
         result.csrfToken
       );
+      await syncFirstPartyAuthSession(result.accessToken);
       resumeCartSync();
       return result;
     } catch (err: unknown) {

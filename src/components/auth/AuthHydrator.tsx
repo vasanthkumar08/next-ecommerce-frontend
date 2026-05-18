@@ -88,6 +88,35 @@ const hydrateFromStoredAccessToken = async (
   };
 };
 
+const hydrateFromFirstPartyAuthSession =
+  async (): Promise<AuthResponse | null> => {
+    const response = await fetch("/api/auth/session", {
+      cache: "no-store",
+    });
+
+    if (!response.ok) return null;
+
+    const body = (await response.json()) as Partial<AuthResponse>;
+    const user = body.user;
+
+    if (
+      body.success !== true ||
+      typeof body.accessToken !== "string" ||
+      typeof user?.id !== "string" ||
+      typeof user.name !== "string" ||
+      typeof user.email !== "string" ||
+      (user.role !== "admin" && user.role !== "manager" && user.role !== "user")
+    ) {
+      return null;
+    }
+
+    return {
+      success: true,
+      accessToken: body.accessToken,
+      user,
+    };
+  };
+
 export default function AuthHydrator() {
   const dispatch = useAppDispatch();
 
@@ -304,7 +333,9 @@ export default function AuthHydrator() {
           : undefined;
 
         try {
-          const session = await hydrateFromStoredAccessToken(apiUrl);
+          const session =
+            (await hydrateFromStoredAccessToken(apiUrl)) ??
+            (await hydrateFromFirstPartyAuthSession());
 
           if (cancelled) return;
 

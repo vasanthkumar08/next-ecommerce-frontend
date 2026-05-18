@@ -1,5 +1,16 @@
 import type { NextConfig } from "next";
 
+const apiOrigin = (() => {
+  const value = process.env.NEXT_PUBLIC_API_URL;
+  if (!value) return "";
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return "";
+  }
+})();
+
 const cspReportOnly = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -8,7 +19,16 @@ const cspReportOnly = [
   "img-src 'self' data: https://images.unsplash.com https://res.cloudinary.com https://fakestoreapi.com https://i.pravatar.cc",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com",
   "style-src 'self' 'unsafe-inline'",
-  "connect-src 'self' http://localhost:5000 http://localhost:3000 http://localhost:3001 https://api.razorpay.com",
+  [
+    "connect-src 'self'",
+    "http://localhost:5000",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://api.razorpay.com",
+    apiOrigin,
+  ]
+    .filter(Boolean)
+    .join(" "),
   "frame-src https://api.razorpay.com https://checkout.razorpay.com",
 ].join("; ");
 

@@ -6,6 +6,7 @@ import { hydrateAuth, markAuthUnknown } from "@/features/auth/authSlice";
 import { getApiBaseUrl } from "@/lib/apiUrl";
 import {
   isConfirmedInvalidRefreshError,
+  isMissingRefreshCookieError,
   refreshAuthSession,
 } from "@/lib/axios";
 import {
@@ -320,11 +321,12 @@ export default function AuthHydrator() {
               })
             );
           } else if (
-            (code === "SESSION_INACTIVE_TIMEOUT" ||
+            isMissingRefreshCookieError(error) ||
+            ((code === "SESSION_INACTIVE_TIMEOUT" ||
               isAuthInactiveExpired()) &&
-            (isConfirmedInvalidRefreshError(error) ||
-              status === 401 ||
-              status === 403)
+              (isConfirmedInvalidRefreshError(error) ||
+                status === 401 ||
+                status === 403))
           ) {
             dispatch(hydrateAuth({ user: null, accessToken: null }));
           } else {
@@ -338,11 +340,12 @@ export default function AuthHydrator() {
           if (cancelled) return;
 
           if (
-            (code === "SESSION_INACTIVE_TIMEOUT" ||
+            isMissingRefreshCookieError(error) ||
+            ((code === "SESSION_INACTIVE_TIMEOUT" ||
               isAuthInactiveExpired()) &&
-            (isConfirmedInvalidRefreshError(error) ||
-              status === 401 ||
-              status === 403)
+              (isConfirmedInvalidRefreshError(error) ||
+                status === 401 ||
+                status === 403))
           ) {
             dispatch(hydrateAuth({ user: null, accessToken: null }));
           } else {

@@ -48,7 +48,7 @@ export const isConfirmedInvalidRefreshError = (error: unknown): boolean => {
   );
 };
 
-const isMissingRefreshCookieError = (error: unknown): boolean => {
+export const isMissingRefreshCookieError = (error: unknown): boolean => {
   if (!axios.isAxiosError<ApiErrorBody>(error)) return false;
 
   return (

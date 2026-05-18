@@ -1,21 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { House, Package, ShoppingBag, ShoppingCart, User } from "lucide-react";
 import { useAppSelector } from "@/store/hooks";
 
 const navItems = [
-  { label: "Home", href: "/", icon: House },
-  { label: "Shop", href: "/shop/products", icon: ShoppingBag },
-  { label: "Cart", href: "/shop/cart", icon: ShoppingCart },
-  { label: "Orders", href: "/shop/orders", icon: Package },
-  { label: "Profile", href: "/profile", icon: User },
+  { label: "Home", href: "/", icon: House, requiresAuth: false },
+  {
+    label: "Shop",
+    href: "/shop/products",
+    icon: ShoppingBag,
+    requiresAuth: false,
+  },
+  { label: "Cart", href: "/shop/cart", icon: ShoppingCart, requiresAuth: true },
+  { label: "Orders", href: "/shop/orders", icon: Package, requiresAuth: true },
+  { label: "Profile", href: "/profile", icon: User, requiresAuth: true },
 ] as const;
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const cartCount = useAppSelector((state) =>
     state.cart.items.reduce((total, item) => total + item.quantity, 0)
   );
@@ -30,7 +37,7 @@ export default function MobileBottomNav() {
       aria-label="Mobile primary navigation"
     >
       <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
-        {navItems.map(({ label, href, icon: Icon }) => {
+        {navItems.map(({ label, href, icon: Icon, requiresAuth }) => {
           const active = isActive(href);
           const isCart = label === "Cart";
 
@@ -38,6 +45,12 @@ export default function MobileBottomNav() {
             <Link
               key={label}
               href={href}
+              onClick={(event) => {
+                if (!requiresAuth || isAuthenticated) return;
+
+                event.preventDefault();
+                router.push(`/login?next=${encodeURIComponent(href)}`);
+              }}
               data-cart-target={isCart ? "mobile" : undefined}
               className="relative min-w-0 rounded-2xl px-1 py-1.5 text-center"
               aria-current={active ? "page" : undefined}

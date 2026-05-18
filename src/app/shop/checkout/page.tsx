@@ -5,7 +5,9 @@ import { useForm, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
+  clearCheckoutAttemptKey,
   createOrder,
+  getCheckoutFingerprint,
   PaymentMethod,
   ShippingAddress,
 } from "@/features/order/order.api";
@@ -400,12 +402,27 @@ export default function CheckoutPage() {
         await openRazorpay(order.id);
       }
 
+      clearCheckoutAttemptKey(
+        getCheckoutFingerprint(items, shippingAddress, paymentMethod)
+      );
       dispatch(addOrderToHistory(order));
       dispatch(clearCart());
       setSuccess(true);
       setStep(6);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Payment failed");
+      const message = err instanceof Error ? err.message : "Payment failed";
+      if (message.toLowerCase().includes("cancelled")) {
+        setError("Payment cancelled. Your order is still pending if payment was opened.");
+      } else if (
+        message.toLowerCase().includes("network") ||
+        message.toLowerCase().includes("timeout")
+      ) {
+        setError("Network issue while confirming payment. Please retry from Orders before paying again.");
+      } else if (paymentMethod !== "cod") {
+        setError(`${message}. If money was debited, check Orders before retrying.`);
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }

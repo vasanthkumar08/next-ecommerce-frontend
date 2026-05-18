@@ -38,6 +38,13 @@ const demoLoginEnabled =
   process.env.NODE_ENV !== "production" ||
   process.env.NEXTAUTH_DEMO_LOGIN_ENABLED === "true";
 
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.NEXTAUTH_DEMO_LOGIN_ENABLED === "true"
+) {
+  throw new Error("Demo credential login must not be enabled in production");
+}
+
 const oauthProviders = [
   process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
     ? Google({

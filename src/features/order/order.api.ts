@@ -22,6 +22,7 @@ export interface ShippingAddress {
 }
 
 const objectIdPattern = /^[a-f\d]{24}$/i;
+const checkoutAttemptPrefix = "vasanthtrends:checkout-attempt:";
 
 const stableHash = (value: string) => {
   let hash = 0;
@@ -53,6 +54,37 @@ const createCheckoutIdempotencyKey = (
     `${cartFingerprint}:${addressFingerprint}`
   )}`;
 };
+
+const randomId = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+const checkoutAttemptStorageKey = (fingerprint: string) =>
+  `${checkoutAttemptPrefix}${fingerprint}`;
+
+const getCheckoutAttemptKey = (fingerprint: string) => {
+  if (typeof window === "undefined") return `${fingerprint}:${randomId()}`;
+
+  const storageKey = checkoutAttemptStorageKey(fingerprint);
+  const existing = window.sessionStorage.getItem(storageKey);
+  if (existing) return existing;
+
+  const next = `${fingerprint}:${randomId()}`;
+  window.sessionStorage.setItem(storageKey, next);
+  return next;
+};
+
+export const clearCheckoutAttemptKey = (fingerprint: string) => {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(checkoutAttemptStorageKey(fingerprint));
+};
+
+export const getCheckoutFingerprint = (
+  items: CartItem[],
+  shippingAddress: ShippingAddress,
+  paymentMethod: PaymentMethod
+) => createCheckoutIdempotencyKey(items, shippingAddress, paymentMethod);
 
 interface CreateOrderResponse {
   success: boolean;
@@ -128,11 +160,12 @@ export const createOrder = async (
 
   let res;
 
-  const idempotencyKey = createCheckoutIdempotencyKey(
+  const checkoutFingerprint = createCheckoutIdempotencyKey(
     items,
     shippingAddress,
     paymentMethod
   );
+  const idempotencyKey = getCheckoutAttemptKey(checkoutFingerprint);
 
   try {
     res = await api.post<CreateOrderResponse>("/v1/orders", {

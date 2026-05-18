@@ -1,4 +1,5 @@
 import api from "@/lib/axios";
+import { toast } from "sonner";
 import { getCsrfToken } from "@/features/auth/authStorage";
 import type { CartItem } from "./cartSlice";
 import { clearPendingCartSync, savePendingCartSync } from "./cartPersist";
@@ -173,6 +174,7 @@ export async function syncCartToBackendNow(
         const latestCart = await fetchBackendCart();
         revision = latestCart.revision;
         validItems = rebaseLocalChangesOnRemoteCart(validItems, latestCart.items);
+        toast.info("Cart updated from another device. Rechecking your latest items.");
 
         response = await api.put<BackendCartResponse>(
           "/v1/cart",

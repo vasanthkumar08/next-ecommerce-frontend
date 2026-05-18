@@ -1,5 +1,24 @@
 import api from "@/lib/axios";
 
+const paymentAttemptPrefix = "vasanthtrends:payment-attempt:";
+
+const randomId = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+const getPaymentAttemptKey = (orderId: string) => {
+  if (typeof window === "undefined") return `payment:${orderId}:${randomId()}`;
+
+  const storageKey = `${paymentAttemptPrefix}${orderId}`;
+  const existing = window.sessionStorage.getItem(storageKey);
+  if (existing) return existing;
+
+  const next = `payment:${orderId}:${randomId()}`;
+  window.sessionStorage.setItem(storageKey, next);
+  return next;
+};
+
 interface RazorpayOrderResponse {
   success: boolean;
   message: string;
@@ -31,6 +50,10 @@ export const createRazorpayOrder = async (
 ): Promise<RazorpayOrderResponse["data"]> => {
   const response = await api.post<RazorpayOrderResponse>("/v1/payments/create", {
     orderId,
+  }, {
+    headers: {
+      "Idempotency-Key": getPaymentAttemptKey(orderId),
+    },
   });
 
   return response.data.data;
@@ -46,4 +69,3 @@ export const verifyRazorpayPayment = async (
 
   return response.data;
 };
-

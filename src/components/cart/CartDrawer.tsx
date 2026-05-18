@@ -8,6 +8,7 @@ import { IndianRupee, ShoppingCart, X } from "lucide-react";
 import { useAppSelector } from "@/store/hooks";
 import type { Product } from "@/types/product";
 import { CART_DRAWER_EVENT } from "@/utils/cartDrawerEvents";
+import { getSafeProductImage } from "@/lib/productImage";
 
 const currency = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -103,7 +104,7 @@ export default function CartDrawer() {
                   <div className="flex gap-3">
                     <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-white">
                       <Image
-                        src={recentProduct.image || "/placeholder.png"}
+                        src={getSafeProductImage(recentProduct.image)}
                         alt={recentProduct.title}
                         fill
                         sizes="64px"
@@ -131,7 +132,7 @@ export default function CartDrawer() {
                   >
                     <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-50">
                       <Image
-                        src={item.image || "/placeholder.png"}
+                        src={getSafeProductImage(item.image)}
                         alt={item.title}
                         fill
                         sizes="56px"

@@ -163,11 +163,11 @@ const setStoredCsrfToken = (csrfToken: string | undefined): void => {
 
 const setStoredAccessToken = (accessToken: string | undefined): void => {
   if (!canUseBrowser() || !accessToken) return;
-  // Access tokens are temporary fallback credentials for cookie-hostile mobile
-  // browsers. Keep the same short-lived token reload-safe so a pull refresh does
-  // not look like logout when the refresh cookie is not sent.
+  // Access tokens are temporary fallback credentials for cookie-hostile
+  // browsers. Keep them session-scoped only; refresh remains backend-cookie
+  // authority and must never be persisted in JS-readable storage.
   window.sessionStorage.setItem(ACCESS_TOKEN_SESSION_STORAGE_KEY, accessToken);
-  window.localStorage.setItem(ACCESS_TOKEN_LOCAL_STORAGE_KEY, accessToken);
+  window.localStorage.removeItem(ACCESS_TOKEN_LOCAL_STORAGE_KEY);
 };
 
 const clearStoredCsrfToken = (): void => {
@@ -278,10 +278,8 @@ export const markStaleTabLoggedOut = (reason = "stale_tab"): void => {
 
 export const getStoredAccessToken = (): string | null => {
   if (!canUseBrowser()) return null;
-  return (
-    window.sessionStorage.getItem(ACCESS_TOKEN_SESSION_STORAGE_KEY) ??
-    window.localStorage.getItem(ACCESS_TOKEN_LOCAL_STORAGE_KEY)
-  );
+  window.localStorage.removeItem(ACCESS_TOKEN_LOCAL_STORAGE_KEY);
+  return window.sessionStorage.getItem(ACCESS_TOKEN_SESSION_STORAGE_KEY);
 };
 export const getStoredRefreshToken = (): string | null => {
   clearStoredRefreshToken();

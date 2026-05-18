@@ -304,19 +304,33 @@ function PremiumCategoryShowcase({ loading }: { loading: boolean }) {
   );
 }
 
-export default function HomePage() {
+interface HomePageProps {
+  initialProducts?: Product[];
+  initialError?: string | null;
+}
+
+export default function HomePage({
+  initialProducts = [],
+  initialError = null,
+}: HomePageProps) {
   const dispatch = useAppDispatch();
   const productSectionRef = useRef<HTMLDivElement | null>(null);
-  const products = useAppSelector(selectProducts);
+  const storeProducts = useAppSelector(selectProducts);
   const status = useAppSelector(selectProductStatus);
-  const error = useAppSelector(selectProductError);
+  const storeError = useAppSelector(selectProductError);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const products = storeProducts.length > 0 ? storeProducts : initialProducts;
+  const error = storeError ?? (products.length === 0 ? initialError : null);
 
   useEffect(() => {
-    if (status === "idle") dispatch(fetchProducts());
-  }, [dispatch, status]);
+    if (status === "idle" && initialProducts.length === 0) {
+      dispatch(fetchProducts());
+    }
+  }, [dispatch, initialProducts.length, status]);
 
-  const isLoading = status === "loading";
+  const isLoading =
+    (status === "idle" && products.length === 0) ||
+    (status === "loading" && products.length === 0);
   const isEmpty = status === "succeeded" && products.length === 0;
 
   const categoryCards = useMemo(

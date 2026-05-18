@@ -32,6 +32,7 @@ import {
 import ProductGrid from "@/components/product/ProductGrid";
 import { ProductCardSkeleton } from "@/components/ui/Skeleton";
 import type { Review } from "@/types/review";
+import { getSafeProductImage, PRODUCT_IMAGE_FALLBACK } from "@/lib/productImage";
 
 const currency = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -266,7 +267,7 @@ export default function ProductDetailsPage() {
   }
 
   const imageSrc =
-    !imgError && product.image?.trim() ? product.image : "/placeholder.png";
+    !imgError ? getSafeProductImage(product.image) : PRODUCT_IMAGE_FALLBACK;
 
   return (
     <div className="min-h-screen bg-white">

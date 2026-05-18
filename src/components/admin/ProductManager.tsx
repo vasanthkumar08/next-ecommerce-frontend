@@ -29,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { getSafeProductImage, PRODUCT_IMAGE_FALLBACK } from "@/lib/productImage";
 
 const productSchema = z.object({
   name: z.string().trim().min(2, "Name is required"),
@@ -39,7 +40,15 @@ const productSchema = z.object({
   category: z.string().trim().min(2, "Category is required"),
   brand: z.string().optional(),
   stock: z.number().int().min(0, "Stock cannot be negative"),
-  imageUrl: z.string().url("Enter a valid image URL").optional().or(z.literal("")),
+  imageUrl: z
+    .string()
+    .trim()
+    .url("Enter a valid image URL")
+    .refine((value) => getSafeProductImage(value) !== PRODUCT_IMAGE_FALLBACK, {
+      message: "Use a trusted HTTPS image URL",
+    })
+    .optional()
+    .or(z.literal("")),
   ratings: z.number().min(0).max(5),
 });
 
@@ -84,7 +93,6 @@ export function ProductManager({
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(initialMode === "create" && canManage);
   const [editing, setEditing] = useState<AdminProduct | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -108,22 +116,9 @@ export function ProductManager({
     return Array.from(new Set(products.map((product) => product.category).filter(Boolean))).sort();
   }, [products]);
 
-  useEffect(() => {
-    if (!imageFile) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setImagePreview(reader.result);
-      }
-    };
-    reader.readAsDataURL(imageFile);
-  }, [imageFile]);
-
   function openCreate() {
     if (!canManage) return;
     setEditing(null);
-    setImageFile(null);
     setImagePreview(null);
     form.reset(emptyValues);
     setOpen(true);
@@ -132,7 +127,6 @@ export function ProductManager({
   function openEdit(product: AdminProduct) {
     if (!canManage) return;
     setEditing(product);
-    setImageFile(null);
     const firstImage = product.images[0]?.url ?? "";
     setImagePreview(firstImage);
     form.reset({
@@ -151,10 +145,10 @@ export function ProductManager({
   }
 
   function onSubmit(values: ProductFormValues) {
-    const image = values.imageUrl?.trim() || imagePreview || editing?.images[0]?.url;
+    const image = values.imageUrl?.trim() || editing?.images[0]?.url;
 
-    if (!image) {
-      toast.error("Failed: product image is required");
+    if (!image || getSafeProductImage(image) === PRODUCT_IMAGE_FALLBACK) {
+      toast.error("Failed: use a trusted HTTPS image URL");
       return;
     }
 
@@ -171,7 +165,12 @@ export function ProductManager({
           stock: values.stock,
           ratings: values.ratings,
           countInStock: values.stock,
-          images: [{ url: image, public_id: `admin-upload-${Date.now()}` }],
+          images: [
+            {
+              url: getSafeProductImage(image),
+              public_id: `admin-upload-${Date.now()}`,
+            },
+          ],
         };
 
         if (editing) {
@@ -287,7 +286,7 @@ export function ProductManager({
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {products.map((product) => {
-                  const image = product.images[0]?.url ?? "/globe.svg";
+                  const image = getSafeProductImage(product.images[0]?.url);
 
                   return (
                     <tr key={product.id} className="transition hover:bg-[#F8FAFC]">
@@ -387,28 +386,21 @@ export function ProductManager({
               <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-dashed border-slate-300 bg-[#F8FAFC]">
                 {imagePreview ? (
                   <Image
-                    src={imagePreview}
+                    src={getSafeProductImage(imagePreview)}
                     alt="Product preview"
                     fill
                     sizes="(min-width: 768px) 512px, 100vw"
                     className="object-cover"
-                    unoptimized={imagePreview.startsWith("data:")}
                   />
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-500">
                     <ImagePlus className="h-8 w-8" />
-                    <span className="text-sm">Upload image or paste a URL</span>
+                    <span className="text-sm">Paste a trusted image URL</span>
                   </div>
                 )}
               </div>
               <Input
-                type="file"
-                accept="image/*"
-                className={inputClass}
-                onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
-              />
-              <Input
-                placeholder="https://example.com/product.jpg"
+                placeholder="https://res.cloudinary.com/.../product.jpg"
                 className={inputClass}
                 {...form.register("imageUrl")}
                 onChange={(event) => {

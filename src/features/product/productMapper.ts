@@ -1,4 +1,5 @@
 import type { Product } from "@/types/product";
+import { getSafeProductImage } from "@/lib/productImage";
 
 export interface ProductImage {
   url: string;
@@ -59,11 +60,10 @@ const getProductId = (product: BackendProduct) => product.id ?? product._id;
 
 const getProductImage = (product: BackendProduct) => {
   const image = product.images?.[0]?.url ?? product.image;
-  if (image?.trim()) return image;
-
-  return (
+  return getSafeProductImage(
+    image,
     categoryImages[product.category?.toLowerCase()] ??
-    "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80"
+      "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80"
   );
 };
 

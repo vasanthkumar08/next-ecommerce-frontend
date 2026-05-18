@@ -15,6 +15,7 @@ import {
   Truck,
   Zap,
 } from "lucide-react";
+import { getSafeProductImage, PRODUCT_IMAGE_FALLBACK } from "@/lib/productImage";
 
 export interface ProductCardProps {
   id: string | number;
@@ -59,7 +60,9 @@ function ProductCard({
   const [quickViewOpen, setQuickViewOpen] = useState(false);
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
   const [touchOffset, setTouchOffset] = useState(0);
-  const imageSrc = imageFailed || !image.trim() ? "/placeholder.png" : image;
+  const imageSrc = imageFailed
+    ? PRODUCT_IMAGE_FALLBACK
+    : getSafeProductImage(image);
   const isLimitedDeal = discount > 30;
   const cleanDescription =
     description.trim() || "Premium quality product selected for everyday use.";

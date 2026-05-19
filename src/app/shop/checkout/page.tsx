@@ -330,7 +330,7 @@ export default function CheckoutPage() {
           key,
           amount: razorpayOrder.amount,
           currency: razorpayOrder.currency,
-          name: "Smart Trens",
+          name: "Smart Trends",
           description: "Secure checkout",
           order_id: razorpayOrder.id,
           prefill: {

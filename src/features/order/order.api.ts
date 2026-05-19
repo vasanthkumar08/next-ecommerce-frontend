@@ -22,7 +22,7 @@ export interface ShippingAddress {
 }
 
 const objectIdPattern = /^[a-f\d]{24}$/i;
-const checkoutAttemptPrefix = "smarttrens:checkout-attempt:";
+const checkoutAttemptPrefix = "smarttrends:checkout-attempt:";
 
 const stableHash = (value: string) => {
   let hash = 0;

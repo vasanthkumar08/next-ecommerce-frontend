@@ -23,7 +23,7 @@ type BackendMeResponse = {
 export async function getServerUserSession(): Promise<ServerUserSession | null> {
   const requestHeaders = await headers();
   const accessToken =
-    requestHeaders.get("x-smarttrens-verified-access-token") ??
+    requestHeaders.get("x-smarttrends-verified-access-token") ??
     (await cookies()).get("accessToken")?.value;
   const apiUrl = getApiBaseUrl();
 

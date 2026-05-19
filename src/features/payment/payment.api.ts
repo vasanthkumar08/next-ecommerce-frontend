@@ -1,6 +1,6 @@
 import api from "@/lib/axios";
 
-const paymentAttemptPrefix = "smarttrens:payment-attempt:";
+const paymentAttemptPrefix = "smarttrends:payment-attempt:";
 
 const randomId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto

@@ -2,16 +2,16 @@ import type { User } from "./auth.api";
 import { getApiBaseUrl } from "@/lib/apiUrl";
 import { markPerf, measurePerf } from "@/lib/perf";
 
-export const AUTH_SESSION_EVENT = "smarttrens:auth-session";
-export const AUTH_SESSION_STORAGE_KEY = "smarttrens:auth-session-event";
+export const AUTH_SESSION_EVENT = "smarttrends:auth-session";
+export const AUTH_SESSION_STORAGE_KEY = "smarttrends:auth-session-event";
 const CSRF_COOKIE_NAME = "csrfToken";
-const CSRF_SESSION_STORAGE_KEY = "smarttrens:csrf-token";
-const CSRF_LOCAL_STORAGE_KEY = "smarttrens:csrf-token:persistent";
-const ACCESS_TOKEN_SESSION_STORAGE_KEY = "smarttrens:access-token";
-const ACCESS_TOKEN_LOCAL_STORAGE_KEY = "smarttrens:access-token:persistent";
-const USER_LOCAL_STORAGE_KEY = "smarttrens:user";
-const LAST_ACTIVITY_LOCAL_STORAGE_KEY = "smarttrens:last-activity-at";
-const AUTH_BROADCAST_CHANNEL = "smarttrens:auth";
+const CSRF_SESSION_STORAGE_KEY = "smarttrends:csrf-token";
+const CSRF_LOCAL_STORAGE_KEY = "smarttrends:csrf-token:persistent";
+const ACCESS_TOKEN_SESSION_STORAGE_KEY = "smarttrends:access-token";
+const ACCESS_TOKEN_LOCAL_STORAGE_KEY = "smarttrends:access-token:persistent";
+const USER_LOCAL_STORAGE_KEY = "smarttrends:user";
+const LAST_ACTIVITY_LOCAL_STORAGE_KEY = "smarttrends:last-activity-at";
+const AUTH_BROADCAST_CHANNEL = "smarttrends:auth";
 let logoutRequest: Promise<void> | null = null;
 let logoutCompleted = false;
 let authSessionEpoch = 0;
@@ -187,7 +187,7 @@ const clearStoredRefreshToken = (): void => {
   // refresh cookie is now the only refresh-token authority, so this remains as
   // one-way cleanup for users upgrading from earlier frontend bundles.
   if (!canUseBrowser()) return;
-  window.localStorage.removeItem("smarttrens:refresh-token");
+  window.localStorage.removeItem("smarttrends:refresh-token");
 };
 
 const setStoredUser = (user: User): void => {

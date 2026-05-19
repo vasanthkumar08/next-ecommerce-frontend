@@ -14,7 +14,7 @@ let suppressedSnapshotKey: string | null = null;
 let baseQuantities: Map<string, number> | null = null;
 let baseRevision: number | null = null;
 const objectIdPattern = /^[a-f\d]{24}$/i;
-const cartHydrationRetryEvent = "smarttrens:cart-hydration-retry";
+const cartHydrationRetryEvent = "smarttrends:cart-hydration-retry";
 type BackendProductRef =
   | string
   | {

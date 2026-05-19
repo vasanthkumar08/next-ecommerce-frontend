@@ -93,7 +93,7 @@ export default function Navbar() {
           href="/"
           className="shrink-0 text-lg font-black tracking-tight text-slate-800 sm:text-xl"
         >
-          smart<span className="text-[#ff6700]">trens</span>
+          smart<span className="text-[#ff6700]">trends</span>
         </Link>
 
         <div className="hidden min-w-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition focus-within:border-[#ff6700] focus-within:ring-2 focus-within:ring-orange-500/15 sm:flex">

@@ -7,23 +7,23 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "smarttrens - Shop Smarter",
-    template: "%s | smarttrens",
+    default: "smarttrends - Shop Smarter",
+    template: "%s | smarttrends",
   },
   description: "Premium e-commerce experience",
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "smarttrens - Shop Smarter",
+    title: "smarttrends - Shop Smarter",
     description: "Premium e-commerce experience",
     url: "/",
-    siteName: "smarttrens",
+    siteName: "smarttrends",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "smarttrens - Shop Smarter",
+    title: "smarttrends - Shop Smarter",
     description: "Premium e-commerce experience",
   },
 };

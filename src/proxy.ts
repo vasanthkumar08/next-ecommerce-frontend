@@ -13,7 +13,7 @@ const protectedRoutePrefixes = [
   "/shop/wishlist",
 ] as const;
 const accessTokenMaxAge = 7 * 24 * 60 * 60;
-const verifiedAccessHeader = "x-vasanth-verified-access-token";
+const verifiedAccessHeader = "x-smarttrens-verified-access-token";
 
 interface RefreshResponse {
   success: boolean;

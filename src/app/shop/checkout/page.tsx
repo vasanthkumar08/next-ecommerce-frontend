@@ -330,7 +330,7 @@ export default function CheckoutPage() {
           key,
           amount: razorpayOrder.amount,
           currency: razorpayOrder.currency,
-          name: "Vasanth Trends",
+          name: "Smart Trens",
           description: "Secure checkout",
           order_id: razorpayOrder.id,
           prefill: {

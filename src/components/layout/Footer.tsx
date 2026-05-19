@@ -62,7 +62,7 @@ export default function Footer() {
       <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.1fr_1.5fr] lg:px-8">
         <div>
           <p className="text-2xl font-black tracking-tight text-white">
-            vasanth<span className="text-[#ff6700]">trends</span>
+            smart<span className="text-[#ff6700]">trens</span>
           </p>
           <p className="mt-4 max-w-md text-sm leading-7 text-slate-400">
             Premium Indian shopping experience with fast delivery, secure
@@ -106,7 +106,7 @@ export default function Footer() {
       <div className="border-t border-white/10">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-5 text-sm sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
           <p className="text-slate-400">
-            © {CURRENT_YEAR} vasanthtrends. Made with love in India.
+            © {CURRENT_YEAR} smarttrens. Made with love in India.
           </p>
           <div className="flex gap-2">
             {socials.map(({ icon: Icon, label, href }) => (

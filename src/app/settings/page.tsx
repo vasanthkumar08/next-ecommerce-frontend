@@ -69,7 +69,7 @@ export default function SettingsPage() {
               </h1>
               <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-500">
                 Manage profile, addresses, notifications and security for your
-                vasanthtrends shopping account.
+                smarttrens shopping account.
               </p>
             </div>
             <Link

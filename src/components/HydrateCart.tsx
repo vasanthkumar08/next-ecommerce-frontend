@@ -25,7 +25,7 @@ import {
 } from "@/features/cart/cartSync";
 import { captureFrontendException, captureFrontendMessage } from "@/lib/observability";
 
-export const CART_HYDRATION_RETRY_EVENT = "vasanthtrends:cart-hydration-retry";
+export const CART_HYDRATION_RETRY_EVENT = "smarttrens:cart-hydration-retry";
 const cartRefreshInitialDelayMs = 15_000;
 const cartRefreshMaxDelayMs = 120_000;
 

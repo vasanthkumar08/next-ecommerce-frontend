@@ -14,7 +14,7 @@ export default async function AdminSettingsPage() {
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-base font-bold text-slate-950">Store settings</h2>
           <div className="mt-4 space-y-4">
-            <Input defaultValue="vasanthtrends" aria-label="Store name" />
+            <Input defaultValue="smarttrens" aria-label="Store name" />
             <Input defaultValue="Razorpay" aria-label="Payment methods" />
             <Button>Save store settings</Button>
           </div>

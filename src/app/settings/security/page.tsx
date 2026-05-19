@@ -22,8 +22,8 @@ type SessionInfo = {
   lastActivity: string;
 };
 
-const LAST_ACTIVITY_KEY = "vasanthtrends.security.lastActivity";
-const SESSION_TIMEOUT_KEY = "vasanthtrends.security.timeoutMinutes";
+const LAST_ACTIVITY_KEY = "smarttrens.security.lastActivity";
+const SESSION_TIMEOUT_KEY = "smarttrens.security.timeoutMinutes";
 
 const getBrowserName = (agent: string) => {
   if (agent.includes("Edg/")) return "Microsoft Edge";

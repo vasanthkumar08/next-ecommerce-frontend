@@ -20,22 +20,29 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [submitInFlight, setSubmitInFlight] = useState(false);
 
   const passwordTouched = password.length > 0;
   const passwordWeak = passwordTouched && !STRONG_PASSWORD.test(password);
   const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
-  const formInvalid = loading || passwordMismatch || passwordWeak;
+  const formInvalid = loading || submitInFlight || passwordMismatch || passwordWeak;
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (formInvalid) return;
 
-    const result = await dispatch(
-      register({ name, email, password, confirmPassword })
-    );
+    setSubmitInFlight(true);
 
-    if (register.fulfilled.match(result)) {
-      router.push("/login");
+    try {
+      const result = await dispatch(
+        register({ name, email, password, confirmPassword })
+      );
+
+      if (register.fulfilled.match(result)) {
+        router.push("/login");
+      }
+    } finally {
+      setSubmitInFlight(false);
     }
   };
 
@@ -151,7 +158,7 @@ export default function RegisterPage() {
           <Button
             type="submit"
             disabled={formInvalid}
-            loading={loading}
+            loading={loading || submitInFlight}
             fullWidth
             className="h-11 rounded-xl bg-orange-500 font-black shadow-lg shadow-orange-500/20 transition hover:-translate-y-0.5 hover:bg-orange-600 focus-visible:ring-orange-500 active:scale-[0.98]"
           >

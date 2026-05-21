@@ -98,8 +98,17 @@ export const registerUser = async (
     const res = await api.post<RegisterResponse>("/v1/auth/register", data);
     return res.data;
   } catch (error) {
-    if (axios.isAxiosError<{ message?: string }>(error)) {
+    if (axios.isAxiosError<ApiErrorBody>(error)) {
       const status = error.response?.status;
+
+      if (status === 429) {
+        const retryAfter = error.response?.data?.retryAfter;
+        throw new Error(
+          retryAfter
+            ? `Too many registration attempts. Try again in ${retryAfter} seconds.`
+            : "Too many registration attempts. Please wait and try again."
+        );
+      }
 
       if (status && ![404, 500, 502, 503, 504].includes(status)) {
         throw new Error(error.response?.data?.message ?? "Registration failed");

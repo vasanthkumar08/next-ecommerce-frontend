@@ -2,29 +2,82 @@ import { AppProviders } from "@/components/providers/AppProviders";
 import type { Metadata } from "next";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "https://next-ecommerce-frontend-theta.vercel.app";
+const siteName = "C Smart Store";
+const siteDescription =
+  "Premium Smart Products & Modern Ecommerce Experience";
+const previewImage = "/logo.jpg?v=20260526";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+  applicationName: siteName,
   title: {
-    default: "smarttrends - Shop Smarter",
-    template: "%s | smarttrends",
+    default: siteName,
+    template: `%s | ${siteName}`,
   },
-  description: "Premium e-commerce experience",
+  description: siteDescription,
+  keywords: [
+    "C Smart Store",
+    "smart products",
+    "premium ecommerce",
+    "modern ecommerce",
+    "online shopping",
+  ],
+  authors: [{ name: siteName }],
+  creator: siteName,
+  publisher: siteName,
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   alternates: {
     canonical: "/",
   },
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/logo.jpg",
+  },
   openGraph: {
-    title: "smarttrends - Shop Smarter",
-    description: "Premium e-commerce experience",
+    title: siteName,
+    description: siteDescription,
     url: "/",
-    siteName: "smarttrends",
+    siteName,
+    images: [
+      {
+        url: previewImage,
+        width: 736,
+        height: 736,
+        alt: `${siteName} logo`,
+      },
+    ],
+    locale: "en_US",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "smarttrends - Shop Smarter",
-    description: "Premium e-commerce experience",
+    title: siteName,
+    description: siteDescription,
+    images: [
+      {
+        url: previewImage,
+        alt: `${siteName} logo`,
+      },
+    ],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
 };
 

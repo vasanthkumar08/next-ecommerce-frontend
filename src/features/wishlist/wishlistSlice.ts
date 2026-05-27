@@ -4,7 +4,6 @@ import {
   createSlice,
 } from "@reduxjs/toolkit";
 import { Product } from "@/types/product";
-import type { RootState } from "@/store/store";
 import {
   addWishlistProduct,
   fetchWishlist,
@@ -109,7 +108,9 @@ const wishlistSlice = createSlice({
 
 export const { addToWishlist, removeFromWishlist, clearWishlist } =
   wishlistSlice.actions;
-export const selectWishlistItems = (state: RootState) => state.wishlist.items;
+type WishlistRootState = { wishlist: WishlistState };
+
+export const selectWishlistItems = (state: WishlistRootState) => state.wishlist.items;
 export const selectWishlistIdSet = createSelector(
   [selectWishlistItems],
   (items) => new Set(items.map((item) => item.id))

@@ -1,47 +1,21 @@
 import api from "@/lib/axios";
 import axios from "axios";
+import type {
+  AuthResponse,
+  LoginRequest,
+  RegisterRequest,
+  RegisterResponse,
+  User,
+} from "./authTypes";
 
 /**
  * 👤 Types
  */
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  role: "user" | "admin" | "manager";
-}
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface RegisterRequest {
-  name: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-}
-
-export interface AuthResponse {
-  success: boolean;
-  message?: string;
-  user: User;
-  accessToken: string;
-  refreshToken?: string;
-  csrfToken?: string;
-}
+export type { AuthResponse, LoginRequest, RegisterRequest, RegisterResponse, User };
 
 interface ApiErrorBody {
   message?: string;
   retryAfter?: number;
-}
-
-export interface RegisterResponse {
-  success: boolean;
-  message: string;
-  data: User;
 }
 
 /**

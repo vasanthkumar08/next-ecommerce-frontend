@@ -10,7 +10,7 @@ import {
   recordAuthActivity,
   syncFirstPartyAuthSession,
 } from "@/features/auth/authStorage";
-import type { AuthResponse } from "@/features/auth/auth.api";
+import type { AuthResponse } from "@/features/auth/authTypes";
 import { captureFrontendException, captureFrontendMessage } from "@/lib/observability";
 
 const api = axios.create({

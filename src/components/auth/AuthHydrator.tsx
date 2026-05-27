@@ -27,7 +27,7 @@ import {
 } from "@/features/auth/authStorage";
 import { useAppDispatch } from "@/store/hooks";
 import { markPerf, measurePerf } from "@/lib/perf";
-import type { AuthResponse } from "@/features/auth/auth.api";
+import type { AuthResponse } from "@/features/auth/authTypes";
 
 let appLoadRefreshPromise: Promise<AuthResponse> | null = null;
 

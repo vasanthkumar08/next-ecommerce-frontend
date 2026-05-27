@@ -1,33 +1,8 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { cancelOrder, fetchOrders } from "@/features/order/order.api";
-import type { RootState } from "@/store/store";
+import type { Order, OrderStatus } from "@/types/orderModel";
 
-export type OrderStatus =
-  | "Pending"
-  | "Processing"
-  | "Shipped"
-  | "Delivered"
-  | "Cancelled";
-
-export interface OrderItem {
-  productId: string;
-  title: string;
-  price: number;
-  quantity: number;
-  image?: string;
-}
-
-export interface Order {
-  id: string;
-  createdAt: string;
-  status: OrderStatus;
-  items: OrderItem[];
-  total: number;
-  paymentMethod?: string;
-  userId?: string;
-  isPaid?: boolean;
-  isDelivered?: boolean;
-}
+export type { Order, OrderStatus };
 
 interface OrdersState {
   items: Order[];
@@ -129,8 +104,10 @@ const ordersSlice = createSlice({
 export const { createOrder, removeOrder, setOrders, updateOrderStatus } =
   ordersSlice.actions;
 
-export const selectOrders = (state: RootState) => state.orders.items;
-export const selectOrdersLoading = (state: RootState) => state.orders.loading;
-export const selectOrdersError = (state: RootState) => state.orders.error;
+type OrdersRootState = { orders: OrdersState };
+
+export const selectOrders = (state: OrdersRootState) => state.orders.items;
+export const selectOrdersLoading = (state: OrdersRootState) => state.orders.loading;
+export const selectOrdersError = (state: OrdersRootState) => state.orders.error;
 
 export default ordersSlice.reducer;

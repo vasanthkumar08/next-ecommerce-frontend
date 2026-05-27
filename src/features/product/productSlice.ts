@@ -1,7 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { getProducts } from "./product.api";
 import { Product } from "@/types/product";
-import { RootState } from "@/store/store";
 
 type Status = "idle" | "loading" | "succeeded" | "failed";
 
@@ -61,9 +60,11 @@ const productSlice = createSlice({
   },
 });
 
-export const selectProducts = (state: RootState) => state.product.items;
-export const selectProductStatus = (state: RootState) => state.product.status;
-export const selectProductError = (state: RootState) => state.product.error;
+type ProductRootState = { product: ProductState };
+
+export const selectProducts = (state: ProductRootState) => state.product.items;
+export const selectProductStatus = (state: ProductRootState) => state.product.status;
+export const selectProductError = (state: ProductRootState) => state.product.error;
 
 export const { resetProducts } = productSlice.actions;
 export default productSlice.reducer;

@@ -1,4 +1,4 @@
-import type { User } from "./auth.api";
+import type { User } from "./authTypes";
 import { getApiBaseUrl } from "@/lib/apiUrl";
 import { markPerf, measurePerf } from "@/lib/perf";
 

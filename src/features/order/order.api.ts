@@ -1,7 +1,7 @@
 import api from "@/lib/axios";
 import axios from "axios";
 import { CartItem } from "@/features/cart/cartSlice";
-import type { Order } from "@/features/orders/ordersSlice";
+import type { Order } from "@/types/orderModel";
 
 export type PaymentMethod = "cod" | "credit_card" | "debit_card" | "upi";
 

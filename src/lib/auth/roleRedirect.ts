@@ -1,4 +1,4 @@
-import type { User } from "@/features/auth/auth.api";
+import type { User } from "@/features/auth/authTypes";
 
 export const getRoleHome = (role: User["role"]) =>
   role === "admin" || role === "manager" ? "/admin/dashboard" : "/shop";
